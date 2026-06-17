@@ -20,6 +20,14 @@ namespace CB2Toolkit.CodeEditor.Services;
 
 public class AngelScriptAutocompleteManager : IDisposable
 {
+    private static readonly Regex WordTagRegex = new(@"<Word>(.*?)</Word>", RegexOptions.Compiled);
+    private static readonly Regex IncludeLineRegex = new(@"^\s*#include\s*""$", RegexOptions.Compiled);
+    private static readonly Regex FunctionRegex = new(@"\b[A-Za-z_]\w*(?=\s*\()", RegexOptions.Compiled);
+    private static readonly Regex ClassDeclarationRegex = new(@"(?<=\b(class|interface|enum)\s+)[A-Za-z_]\w*", RegexOptions.Compiled);
+    private static readonly Regex WordBoundaryRegex = new(@"\b[A-Za-z_]\w*\b", RegexOptions.Compiled);
+    private static readonly Regex ClassFieldRegex = new(@"\b([A-Za-z_]\w*)\s+([A-Za-z_]\w*)\s*;", RegexOptions.Compiled);
+    private static readonly Regex CleanTextRegex = new(@"(//[^\r\n]*)|(/\*[\s\S]*?\*/)|(""(?:\\.|[^""\\])*"")|('(?:\\.|[^'\\])*')", RegexOptions.Compiled);
+
     private readonly TextEditor _editor;
     private CompletionWindow? _completionWindow;
     private readonly List<AngelScriptCompletionData> _baseKeywords = new();
@@ -38,7 +46,7 @@ public class AngelScriptAutocompleteManager : IDisposable
     {
         _baseKeywords.Clear();
         string xshd = AngelScriptSyntax.GetFallbackXshd();
-        foreach (Match match in Regex.Matches(xshd, @"<Word>(.*?)</Word>"))
+        foreach (Match match in WordTagRegex.Matches(xshd))
         {
             string word = match.Groups[1].Value;
             _baseKeywords.Add(new AngelScriptCompletionData(word, CompletionType.Keyword));
@@ -66,7 +74,7 @@ public class AngelScriptAutocompleteManager : IDisposable
             var line = _editor.Document.GetLineByOffset(caretOffset);
             string lineText = _editor.Document.GetText(line.Offset, caretOffset - line.Offset);
 
-            if (Regex.IsMatch(lineText, @"^\s*#include\s*""$"))
+            if (IncludeLineRegex.IsMatch(lineText))
             {
                 TriggerIncludeAutocomplete(caretOffset);
                 return;
@@ -155,11 +163,12 @@ public class AngelScriptAutocompleteManager : IDisposable
     private List<AngelScriptCompletionData> GetContextualSuggestions(string currentWord, int wordStartOffset)
     {
         var suggestions = new List<AngelScriptCompletionData>(_baseKeywords);
-        var addedTexts = new HashSet<string>(suggestions.Select(s => s.Text), StringComparer.OrdinalIgnoreCase);
+        var addedTexts = new HashSet<string>(suggestions.Select(s => s.Text), StringComparer.Ordinal);
         
         string docText = _editor.Document.GetText(0, wordStartOffset);
+        string cleanText = CleanTextRegex.Replace(docText, " ");
 
-        foreach (Match match in Regex.Matches(docText, @"\b[A-Za-z_]\w*(?=\s*\()"))
+        foreach (Match match in FunctionRegex.Matches(cleanText))
         {
             string func = match.Value;
             if (!addedTexts.Contains(func))
@@ -169,7 +178,7 @@ public class AngelScriptAutocompleteManager : IDisposable
             }
         }
 
-        foreach (Match match in Regex.Matches(docText, @"(?<=\b(class|interface|enum)\s+)[A-Za-z_]\w*"))
+        foreach (Match match in ClassDeclarationRegex.Matches(cleanText))
         {
             string cls = match.Value;
             if (!addedTexts.Contains(cls))
@@ -179,7 +188,7 @@ public class AngelScriptAutocompleteManager : IDisposable
             }
         }
 
-        foreach (Match match in Regex.Matches(docText, @"\b[A-Za-z_]\w*\b"))
+        foreach (Match match in WordBoundaryRegex.Matches(cleanText))
         {
             string word = match.Value;
             if (!addedTexts.Contains(word) && word.Length > 2)
@@ -188,9 +197,10 @@ public class AngelScriptAutocompleteManager : IDisposable
                 addedTexts.Add(word);
             }
         }
+        
         return suggestions
-            .Where(s => s.Text.StartsWith(currentWord, StringComparison.Ordinal) &&
-                        !s.Text.Equals(currentWord, StringComparison.Ordinal))
+            .Where(s => s.Text.StartsWith(currentWord, StringComparison.OrdinalIgnoreCase) &&
+                        !s.Text.Equals(currentWord, StringComparison.OrdinalIgnoreCase))
             .OrderBy(s => s.Priority)
             .ThenBy(s => s.Text)
             .ToList();
@@ -298,8 +308,9 @@ public class AngelScriptAutocompleteManager : IDisposable
         if (braceCount > 0) return members;
 
         string classBody = fullText.Substring(startPos, endPos - startPos - 1);
+        string cleanClassBody = CleanTextRegex.Replace(classBody, " ");
 
-        foreach (Match m in Regex.Matches(classBody, @"\b[A-Za-z_]\w*(?=\s*\()"))
+        foreach (Match m in FunctionRegex.Matches(cleanClassBody))
         {
             string methodName = m.Value;
             if (methodName == "if" || methodName == "while" || methodName == "for" || methodName == "switch") continue;
@@ -310,7 +321,7 @@ public class AngelScriptAutocompleteManager : IDisposable
             }
         }
 
-        var fieldMatches = Regex.Matches(classBody, @"\b([A-Za-z_]\w*)\s+([A-Za-z_]\w*)\s*;");
+        var fieldMatches = ClassFieldRegex.Matches(cleanClassBody);
         foreach (Match m in fieldMatches)
         {
             string fieldName = m.Groups[2].Value;

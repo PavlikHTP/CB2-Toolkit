@@ -55,9 +55,8 @@ public partial class AngelScriptEditorView : UserControl
     private DispatcherTimer? _foldingTimer;
     private ErrorColorizer _errorColorizer;
     private DispatcherTimer _validationTimer;
-
-    private List<AngelScriptCompletionData> _baseKeywords = new();
-    private readonly TerminalExecutionService _terminalService = new();
+    private AngelScriptAutocompleteManager _autocompleteManager;
+    private TerminalExecutionService _terminalService = new();
     
    public AngelScriptEditorView()
 {
@@ -65,7 +64,8 @@ public partial class AngelScriptEditorView : UserControl
     Loaded += async (s, e) =>
     {
         CodeEditor.FontSize = SettingsService.Instance.Current.EditorFontSize;
-        InitBaseKeywords();
+        _autocompleteManager = new AngelScriptAutocompleteManager(CodeEditor);
+        
         InitCodeFolding();
         InitAdditionalFeatures();
         ConfigureEditorSelection();
@@ -100,9 +100,7 @@ public partial class AngelScriptEditorView : UserControl
     {
         SaveCurrentTreeState();
     };
-
-    CodeEditor.TextArea.TextEntered += CodeEditor_TextArea_TextEntered;
-    CodeEditor.TextArea.TextEntering += CodeEditor_TextArea_TextEntering;
+    
     CodeEditor.TextChanged += CodeEditor_TextChanged;
     CodeEditor.PreviewMouseWheel += CodeEditor_PreviewMouseWheel;
 }
@@ -113,18 +111,7 @@ public partial class AngelScriptEditorView : UserControl
         CodeEditor.TextArea.SelectionBrush = new SolidColorBrush(Color.FromArgb(0x3D, 0x4D, 0x7C, 0xFE));
         CodeEditor.TextArea.SelectionBorder = null;
     }
-
-    private void InitBaseKeywords()
-    {
-        _baseKeywords.Clear();
-        string xshd = AngelScriptSyntax.GetFallbackXshd();
-
-        foreach (Match match in Regex.Matches(xshd, @"<Word>(.*?)</Word>"))
-        {
-            string word = match.Groups[1].Value;
-            _baseKeywords.Add(new AngelScriptCompletionData(word, CompletionType.Keyword));
-        }
-    }
+    
     
     private void SaveCurrentTreeState()
     {
@@ -632,277 +619,6 @@ public partial class AngelScriptEditorView : UserControl
         CodeEditor.TextArea.TextView.Redraw();
     }
 
-    private void CodeEditor_TextArea_TextEntered(object sender, TextCompositionEventArgs e)
-    {
-        if (BracketService.Instance.ProcessBracketInput(CodeEditor, e.Text))
-        {
-            return;
-        }
-
-        if (_completionWindow != null) return;
-
-        if (e.Text == ".")
-        {
-            ShowMethodsForContext();
-            return;
-        }
-
-        if (e.Text == "\"" && !string.IsNullOrEmpty(ProjectService.Instance.CurrentFolderPath))
-        {
-            int caretOffset = CodeEditor.CaretOffset;
-            var line = CodeEditor.Document.GetLineByOffset(caretOffset);
-            string lineText = CodeEditor.Document.GetText(line.Offset, caretOffset - line.Offset);
-
-            if (Regex.IsMatch(lineText, @"^\s*#include\s*""$"))
-            {
-                var paths = new List<string>();
-                try
-                {
-                    string[] files = Directory.GetFiles(ProjectService.Instance.CurrentFolderPath, "*.*",
-                        SearchOption.AllDirectories);
-                    foreach (var file in files)
-                    {
-                        paths.Add(Path.GetRelativePath(ProjectService.Instance.CurrentFolderPath, file)
-                            .Replace('\\', '/'));
-                    }
-                }
-                catch
-                {
-                }
-
-                if (paths.Count > 0)
-                {
-                    OpenCompletionWindow(caretOffset, caretOffset,
-                        paths.Select(p => new AngelScriptCompletionData(p, CompletionType.Field)));
-                    return;
-                }
-            }
-        }
-
-        if (e.Text.Length > 0 && (char.IsLetterOrDigit(e.Text[0]) || e.Text == "_"))
-        {
-            int offset = CodeEditor.CaretOffset;
-            int start = offset;
-
-            while (start > 0)
-            {
-                char ch = CodeEditor.Document.GetCharAt(start - 1);
-                if (char.IsLetterOrDigit(ch) || ch == '_')
-                    start--;
-                else
-                    break;
-            }
-
-            string currentWord = CodeEditor.Document.GetText(start, offset - start);
-            var suggestions = GetContextualSuggestions(currentWord);
-
-            if (suggestions.Count == 0) return;
-
-            OpenCompletionWindow(start, offset, suggestions);
-        }
-    }
-
-    private void CodeEditor_TextChanged_ForCompletion(object sender, EventArgs e)
-    {
-        if (_completionWindow == null) return;
-
-        int offset = CodeEditor.CaretOffset;
-        int start = _completionWindow.StartOffset;
-
-        if (offset < start)
-        {
-            _completionWindow.Close();
-            return;
-        }
-
-        string currentWord = CodeEditor.Document.GetText(start, offset - start);
-        var filtered = GetContextualSuggestions(currentWord);
-
-        if (filtered.Count == 0)
-        {
-            _completionWindow.Close();
-            return;
-        }
-
-        var data = _completionWindow.CompletionList.CompletionData;
-        data.Clear();
-        foreach (var item in filtered)
-        {
-            data.Add(item);
-        }
-
-        _completionWindow.CompletionList.SelectItem(currentWord);
-    }
-
-    private List<AngelScriptCompletionData> GetContextualSuggestions(string currentWord)
-    {
-        var suggestions = new List<AngelScriptCompletionData>(_baseKeywords);
-        var addedTexts = new HashSet<string>(suggestions.Select(s => s.Text), StringComparer.OrdinalIgnoreCase);
-        string docText = CodeEditor.Text;
-
-        foreach (Match match in Regex.Matches(docText, @"\b[A-Za-z_]\w*(?=\s*\()"))
-        {
-            string func = match.Value;
-            if (!addedTexts.Contains(func))
-            {
-                suggestions.Add(new AngelScriptCompletionData(func, CompletionType.Function));
-                addedTexts.Add(func);
-            }
-        }
-
-        foreach (Match match in Regex.Matches(docText, @"(?<=\b(class|interface|enum)\s+)[A-Za-z_]\w*"))
-        {
-            string cls = match.Value;
-            if (!addedTexts.Contains(cls))
-            {
-                suggestions.Add(new AngelScriptCompletionData(cls, CompletionType.Class));
-                addedTexts.Add(cls);
-            }
-        }
-
-        foreach (Match match in Regex.Matches(docText, @"\b[A-Za-z_]\w*\b"))
-        {
-            string word = match.Value;
-            if (!addedTexts.Contains(word) && word.Length > 2)
-            {
-                suggestions.Add(new AngelScriptCompletionData(word, CompletionType.Field));
-                addedTexts.Add(word);
-            }
-        }
-
-        return suggestions
-            .Where(s => s.Text.StartsWith(currentWord, StringComparison.OrdinalIgnoreCase) &&
-                        !s.Text.Equals(currentWord, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(s => s.Priority)
-            .ThenBy(s => s.Text)
-            .ToList();
-    }
-
-    private void ShowMethodsForContext()
-    {
-        int offset = CodeEditor.CaretOffset;
-        if (offset < 2) return;
-
-        int start = offset - 2;
-        while (start > 0 && (char.IsLetterOrDigit(CodeEditor.Document.GetCharAt(start)) ||
-                             CodeEditor.Document.GetCharAt(start) == '_'))
-        {
-            start--;
-        }
-
-        if (start < offset - 2) start++;
-
-        string varName = CodeEditor.Document.GetText(start, (offset - 1) - start).Trim();
-        var methods = new List<AngelScriptCompletionData>();
-
-        if (varName.Equals("string", StringComparison.OrdinalIgnoreCase) ||
-            varName.EndsWith("text", StringComparison.OrdinalIgnoreCase) ||
-            varName.EndsWith("name", StringComparison.OrdinalIgnoreCase))
-        {
-            methods.Add(new AngelScriptCompletionData("length()", CompletionType.Function));
-            methods.Add(new AngelScriptCompletionData("substr(uint start, int count = -1)", CompletionType.Function));
-            methods.Add(new AngelScriptCompletionData("isEmpty()", CompletionType.Function));
-            methods.Add(new AngelScriptCompletionData("findFirst(const string &in subStr)", CompletionType.Function));
-        }
-        else if (varName.Equals("array", StringComparison.OrdinalIgnoreCase) ||
-                 varName.EndsWith("list", StringComparison.OrdinalIgnoreCase))
-        {
-            methods.Add(new AngelScriptCompletionData("length()", CompletionType.Function));
-            methods.Add(new AngelScriptCompletionData("insertLast(const T &in value)", CompletionType.Function));
-            methods.Add(new AngelScriptCompletionData("removeAt(uint index)", CompletionType.Function));
-            methods.Add(new AngelScriptCompletionData("sortAsc()", CompletionType.Function));
-            methods.Add(new AngelScriptCompletionData("reverse()", CompletionType.Function));
-        }
-        else if (varName.Equals("dictionary", StringComparison.OrdinalIgnoreCase) ||
-                 varName.EndsWith("dict", StringComparison.OrdinalIgnoreCase))
-        {
-            methods.Add(new AngelScriptCompletionData("set(const string &in key, const T &in value)",
-                CompletionType.Function));
-            methods.Add(new AngelScriptCompletionData("exists(const string &in key)", CompletionType.Function));
-            methods.Add(new AngelScriptCompletionData("delete(const string &in key)", CompletionType.Function));
-            methods.Add(new AngelScriptCompletionData("clear()", CompletionType.Function));
-        }
-        else
-        {
-            methods.Add(new AngelScriptCompletionData("length()", CompletionType.Function));
-            methods.Add(new AngelScriptCompletionData("toString()", CompletionType.Function));
-        }
-
-        if (methods.Count > 0)
-        {
-            OpenCompletionWindow(offset, offset, methods);
-        }
-    }
-
-    private void OpenCompletionWindow(int startOffset, int endOffset, IEnumerable<AngelScriptCompletionData> items)
-    {
-        var darkBackground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E1E1E"));
-        var darkBorder = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3E3E42"));
-        var lightForeground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#D4D4D4"));
-
-        _completionWindow = new CompletionWindow(CodeEditor.TextArea)
-        {
-            StartOffset = startOffset,
-            EndOffset = endOffset,
-            Background = darkBackground,
-            Foreground = lightForeground,
-            BorderBrush = darkBorder,
-            Padding = new Thickness(0),
-            BorderThickness = new Thickness(1),
-            Width = 260,
-            MaxHeight = 300,
-            AllowsTransparency = true
-        };
-
-        _completionWindow.CompletionList.Background = darkBackground;
-
-        var listBox = _completionWindow.CompletionList.ListBox;
-        listBox.Style = (Style)System.Windows.Markup.XamlReader.Parse(AutoCompleteStyles.GetListBoxStyleXml());
-        listBox.ItemContainerStyle = (Style)System.Windows.Markup.XamlReader.Parse(AutoCompleteStyles.GetItemStyleXml());
-
-        listBox.SelectionChanged += (s, e) =>
-        {
-            foreach (Window w in _completionWindow.OwnedWindows)
-            {
-                w.Visibility = Visibility.Collapsed;
-                w.Width = 0;
-                w.Height = 0;
-            }
-        };
-
-        var data = _completionWindow.CompletionList.CompletionData;
-        foreach (var item in items)
-        {
-            data.Add(item);
-        }
-
-        _completionWindow.Show();
-
-        string currentWord = CodeEditor.Document.GetText(startOffset, endOffset - startOffset);
-        if (!string.IsNullOrEmpty(currentWord) && currentWord != ".")
-        {
-            _completionWindow.CompletionList.SelectItem(currentWord);
-        }
-
-        CodeEditor.TextChanged += CodeEditor_TextChanged_ForCompletion;
-        _completionWindow.Closed += delegate
-        {
-            CodeEditor.TextChanged -= CodeEditor_TextChanged_ForCompletion;
-            _completionWindow = null;
-        };
-    }
-
-    private void CodeEditor_TextArea_TextEntering(object sender, TextCompositionEventArgs e)
-    {
-        if (e.Text.Length > 0 && _completionWindow != null)
-        {
-            if (!char.IsLetterOrDigit(e.Text[0]) && e.Text[0] != '_')
-            {
-                _completionWindow.CompletionList.RequestInsertion(e);
-            }
-        }
-    }
-
     private async Task LoadAngelScriptHighlightingAsync()
     {
         var settings = SettingsService.Instance.Current;
@@ -1144,6 +860,8 @@ public partial class AngelScriptEditorView : UserControl
         if (!string.IsNullOrEmpty(_currentFilePath) &&
             _currentFilePath.Equals(fullPath, StringComparison.OrdinalIgnoreCase))
         {
+            _autocompleteManager?.ClearWindow(); 
+        
             TempFileService.Instance.ClearTemp(_currentFilePath);
             _currentFilePath = null;
             _isUnsaved = false;
@@ -1329,6 +1047,8 @@ public partial class AngelScriptEditorView : UserControl
     {
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
 
+        _autocompleteManager?.ClearWindow();
+        
         if (!_isNavigatingHistory && !string.IsNullOrEmpty(_currentFilePath) && _currentFilePath != filePath)
         {
             _backHistory.Push(_currentFilePath);

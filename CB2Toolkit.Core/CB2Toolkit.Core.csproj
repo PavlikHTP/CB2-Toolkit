@@ -8,8 +8,8 @@
 
     <PropertyGroup>
         <Version>0.1.0-alpha</Version>
+        <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     </PropertyGroup>
-    
     
     <ItemGroup>
       <PackageReference Include="AvalonEdit" Version="6.3.1.120" />

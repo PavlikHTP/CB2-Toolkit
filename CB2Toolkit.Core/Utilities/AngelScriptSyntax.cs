@@ -13,45 +13,25 @@ public static class AngelScriptSyntax
     <Color name='Function' foreground='#DCDCAA' />
     <Color name='ClassType' foreground='#4EC9B0' />
     <Color name='Field' foreground='#9CDCFE' />
-    
+    <Color name='ObjectHandle' foreground='#C586C0' fontWeight='bold' /> 
     <RuleSet>
         <Span color='Comment' begin='//' />
         <Span color='Comment' multiline='true' begin='/\*' end='\*/' />
         
-        <Span color='Directive' begin='\#include\b' end='$' />
-        
-        <Span color='String'>
-            <Begin>""</Begin>
-            <End>""</End>
-            <RuleSet>
-                <Span begin='\\' end='.' />
-            </RuleSet>
+        <Span color='String' multiline='true'>
+            <Begin>""""""""""""</Begin>
+            <End>""""""""""""</End>
         </Span>
-        <Span color='String'>
-            <Begin>'</Begin>
-            <End>'</End>
-            <RuleSet>
-                <Span begin='\\' end='.' />
-            </RuleSet>
-        </Span>
-        
-        <Keywords color='Directive'>
-            <Word>namespace</Word>
-        </Keywords>
-        
-        <Keywords color='ClassType'>
-            <Word>array</Word>
-            <Word>dictionary</Word>
-            <Word>any</Word>
-            <Word>ref</Word>
-            <Word>auto</Word>
-        </Keywords>
+
+        <!-- Одинаковые и полностью стабильные правила для строк -->
+        <Rule color='String'>&quot;(?:[^&quot;\\]|\\.)*&quot;</Rule>
+        <Rule color='String'>'(?:[^'\\]|\\.)*'</Rule>
         
         <Keywords color='Keyword'>
             <Word>void</Word>
             <Word>int</Word><Word>int8</Word><Word>int16</Word><Word>int32</Word><Word>int64</Word>
             <Word>uint</Word><Word>uint8</Word><Word>uint16</Word><Word>uint32</Word><Word>uint64</Word>
-            <Word>float</Word><Word>double</Word><Word>string</Word><Word>bool</Word>
+            <Word>float</Word><Word>double</Word><Word>bool</Word>
             <Word>class</Word><Word>interface</Word><Word>enum</Word>
             <Word>import</Word><Word>from</Word>
             <Word>private</Word><Word>protected</Word><Word>public</Word>
@@ -61,22 +41,34 @@ public static class AngelScriptSyntax
             <Word>break</Word><Word>continue</Word>
             <Word>for</Word><Word>while</Word><Word>do</Word>
             <Word>return</Word>
-            <Word>true</Word><Word>false</Word><Word>null</Word><Word>NULL</Word><Word>this</Word>
+            <Word>true</Word><Word>false</Word><Word>null</Word><Word>this</Word>
+            <Word>and</Word><Word>or</Word><Word>xor</Word><Word>not</Word><Word>is</Word><Word>notis</Word>
+            <Word>final</Word><Word>override</Word>
         </Keywords>
         
+        <Keywords color='ClassType'>
+            <Word>string</Word>
+            <Word>array</Word>
+            <Word>dictionary</Word>
+            <Word>any</Word>
+            <Word>ref</Word>
+            <Word>auto</Word>
+        </Keywords>
+
+        <Keywords color='Directive'>
+            <Word>namespace</Word>
+        </Keywords>
+        
+        <Rule color='ObjectHandle'>@</Rule>
+        <Rule color='Directive'>\#\w+\b</Rule>
         <Rule color='ClassType'>\[\s*\]</Rule>
-        
-        <Rule color='Number'>\b0[xX][0-9a-fA-F]+\b|\b0[bB][01]+\b|\b\d+(\.[0-9]+)?([eE][+-]?\d+)?([fF])?\b</Rule>
-        
+        <Rule color='Number'>\b0[xX][0-9a-fA-F]+\b|\b0[bB][01]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?[fF]?\b</Rule>
         <Rule color='Function'>\b[A-Za-z_][A-Za-z0-9_]*(?=\s*\()</Rule>
-        
-        <Rule color='ClassType'>\b[A-Za-z_][A-Za-z0-9_]*\b(?=\s*@?\s+[A-Za-z_][A-Za-z0-9_]*\s*[;=,])</Rule>
-        
-        <Rule color='ClassType'>(?&lt;=\b(class|interface|enum)\s+)[A-Za-z_][A-Za-z0-9_]*\b</Rule>
-        
-        <Rule color='Field'>(?&lt;=\b[A-Za-z_][A-Za-z0-9_]*\s*@?\s+)[A-Za-z_][A-Za-z0-9_]*\b(?=\s*[;=,])</Rule>
-        
-        <Rule color='Field'>(?&lt;=\bnamespace\s+)[A-Za-z_][A-Za-z0-9_]*\b</Rule>
+        <Rule color='Field'>(?&lt;=\.)[A-Za-z_][A-Za-z0-9_]*\b</Rule>
+        <Rule color='ClassType'>\b[A-Za-z_][A-Za-z0-9_]*\b(?=(?:\s+|\s*@\s*)[A-Za-z_][A-Za-z0-9_]*\s*[;=,])</Rule>
+        <Rule color='ClassType'>(?&lt;=\b(?:class|interface|enum)\s+)[A-Za-z_][A-Za-z0-9_]*\b</Rule>
+        <Rule color='Field'>(?&lt;=\b[A-Za-z_][A-Za-z0-9_]*(?:\s+|\s*@\s*))[A-Za-z_][A-Za-z0-9_]*\b(?=\s*[;=,])</Rule>
+        <Rule color='ClassType'>(?&lt;=\bnamespace\s+)[A-Za-z_][A-Za-z0-9_]*\b</Rule>
     </RuleSet>
 </SyntaxDefinition>";
     }
