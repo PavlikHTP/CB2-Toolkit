@@ -10,11 +10,6 @@
         <Version>0.1.0-alpha</Version>
     </PropertyGroup>
     
-    <ItemGroup>
-      <Reference Include="FastXCollections">
-        <HintPath>..\libs\FastXCollections.dll</HintPath>
-      </Reference>
-    </ItemGroup>
     
     <ItemGroup>
       <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
