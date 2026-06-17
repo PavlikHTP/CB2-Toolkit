@@ -29,10 +29,10 @@ public class CbpakService
         int repeatCount = 1;
 
         List<object> fileEntries = new();
-        string tempPak = Path.Combine(directory, $"{destName}_temp.pak");
+        // string tempPak = Path.Combine(directory, $"{destName}_temp.pak");
         string finalPak = Path.Combine(directory, $"{destName}.cbpak");
 
-        FileStream pakStream = new FileStream(tempPak, FileMode.Create, FileAccess.Write);
+        FileStream pakStream = new FileStream(finalPak, FileMode.Create, FileAccess.Write);
         BinaryWriter writer = new BinaryWriter(pakStream);
         writer.Write(PAK_VERSION);
 
@@ -58,8 +58,8 @@ public class CbpakService
                 writer.Close();
                 pakStream.Close();
 
-                await ZstdService.Instance.CompressFileAsync(tempPak, finalPak, 3);
-                File.Delete(tempPak);
+                // await ZstdService.Instance.CompressFileAsync(tempPak, finalPak, 3);
+                // File.Delete(tempPak);
 
                 byte[] compressedBytes = await File.ReadAllBytesAsync(finalPak);
                 string hash = CryptoBuffer.GetMd5FromBytes(compressedBytes).ToLowerInvariant();
@@ -73,9 +73,9 @@ public class CbpakService
 
                 repeatCount++;
                 finalPak = Path.Combine(directory, $"{destName}{repeatCount}.cbpak");
-                tempPak = Path.Combine(directory, $"{destName}{repeatCount}_temp.pak");
+                // tempPak = Path.Combine(directory, $"{destName}{repeatCount}_temp.pak");
 
-                pakStream = new FileStream(tempPak, FileMode.Create, FileAccess.Write);
+                pakStream = new FileStream(finalPak, FileMode.Create, FileAccess.Write);
                 writer = new BinaryWriter(pakStream);
                 writer.Write(PAK_VERSION);
             }
@@ -98,8 +98,8 @@ public class CbpakService
         writer.Close();
         pakStream.Close();
 
-        await ZstdService.Instance.CompressFileAsync(tempPak, finalPak, 3);
-        File.Delete(tempPak);
+        // await ZstdService.Instance.CompressFileAsync(tempPak, finalPak, 3);
+        // File.Delete(tempPak);
 
         byte[] finalCompressedBytes = await File.ReadAllBytesAsync(finalPak);
         string finalHash = CryptoBuffer.GetMd5FromBytes(finalCompressedBytes).ToLowerInvariant();
@@ -125,19 +125,20 @@ public class CbpakService
 
     public async Task UnpackFileAsync(string cbpakPath, string destFolder)
     {
-        string tempPak = cbpakPath + ".tmp";
-        await ZstdService.Instance.DecompressFileAsync(cbpakPath, tempPak);
+        // string tempPak = cbpakPath + ".tmp";
+        // await ZstdService.Instance.DecompressFileAsync(cbpakPath, tempPak);
 
-        if (!File.Exists(tempPak)) return;
+        // if (!File.Exists(tempPak)) return;
 
-        using FileStream fs = new FileStream(tempPak, FileMode.Open, FileAccess.Read);
+        // using FileStream fs = new FileStream(tempPak, FileMode.Open, FileAccess.Read);
+        using FileStream fs = new FileStream(cbpakPath, FileMode.Open, FileAccess.Read);
         using BinaryReader reader = new BinaryReader(fs);
 
         int version = reader.ReadInt32();
         if (version != PAK_VERSION)
         {
             reader.Close();
-            File.Delete(tempPak);
+            // File.Delete(tempPak);
             return;
         }
 
@@ -179,6 +180,6 @@ public class CbpakService
         }
 
         reader.Close();
-        File.Delete(tempPak);
+        // File.Delete(tempPak);
     }
 }
