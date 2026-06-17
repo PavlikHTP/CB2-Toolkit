@@ -1,0 +1,52 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net9.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UseWPF>true</UseWPF>
+        <ApplicationIcon>app.ico</ApplicationIcon>
+        <AssemblyName>CB2Toolkit</AssemblyName>
+        <RootNamespace>CB2Toolkit</RootNamespace>
+        <PackageId>CB2Toolkit</PackageId>
+        <Authors>pavlikHTP</Authors>
+        <Product>CB2Toolkit</Product>
+    </PropertyGroup>
+    
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+    </PropertyGroup>
+    
+    <ItemGroup>
+      <Page Update="Views\MainWindow.xaml">
+        <Generator>MSBuild:Compile</Generator>
+        <XamlRuntime>Wpf</XamlRuntime>
+        <SubType>Designer</SubType>
+      </Page>
+    </ItemGroup>
+
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <DebugType>none</DebugType>
+        <DebugSymbols>false</DebugSymbols>
+    </PropertyGroup>
+    
+    <ItemGroup>
+      <ProjectReference Include="..\CB2Toolkit.AddonEditor\CB2Toolkit.AddonEditor.csproj" />
+      <ProjectReference Include="..\CB2Toolkit.CodeEditor\CB2Toolkit.CodeEditor.csproj" />
+      <ProjectReference Include="..\CB2Toolkit.Core\CB2Toolkit.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Resourses\logo_tool.ico" />
+      <None Remove="Resourses\logo_tool.ico" />
+      <Resource Include="Resourses\logo_tool.ico" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="zstd_native.dll">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+</Project>

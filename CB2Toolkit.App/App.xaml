@@ -1,0 +1,120 @@
+﻿<Application x:Class="CB2Toolkit.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="Views/MainWindow.xaml">
+    <Application.Resources>
+        <Style x:Key="HubMenuButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#1A1A1E"/>
+            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="Padding" Value="20,16"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="AnimatedBorder" CornerRadius="6" BorderThickness="1" Background="#1A1A1E">
+                            <Border.BorderBrush>
+                                <LinearGradientBrush x:Name="GradientBrush" StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop x:Name="Stop1" Color="#232329" Offset="0.0"/>
+                                    <GradientStop x:Name="Stop2" Color="#232329" Offset="0.5"/>
+                                    <GradientStop x:Name="Stop3" Color="#232329" Offset="1.0"/>
+                                </LinearGradientBrush>
+                            </Border.BorderBrush>
+                            <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+                            </Border>
+                        </Border>
+                        
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#1F1F24"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard x:Name="ShimmerStoryboard">
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Stop1" Storyboard.TargetProperty="Color" To="#4D7CFE" Duration="0:0:0.3"/>
+                                            <ColorAnimation Storyboard.TargetName="Stop2" Storyboard.TargetProperty="Color" To="#A855F7" Duration="0:0:0.3"/>
+                                            <ColorAnimation Storyboard.TargetName="Stop3" Storyboard.TargetProperty="Color" To="#4D7CFE" Duration="0:0:0.3"/>
+                                            <DoubleAnimation Storyboard.TargetName="Stop1" Storyboard.TargetProperty="Offset" From="-1" To="1" Duration="0:0:2" RepeatBehavior="Forever"/>
+                                            <DoubleAnimation Storyboard.TargetName="Stop2" Storyboard.TargetProperty="Offset" From="-0.5" To="1.5" Duration="0:0:2" RepeatBehavior="Forever"/>
+                                            <DoubleAnimation Storyboard.TargetName="Stop3" Storyboard.TargetProperty="Offset" From="0" To="2" Duration="0:0:2" RepeatBehavior="Forever"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <StopStoryboard BeginStoryboardName="ShimmerStoryboard"/>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <ColorAnimation Storyboard.TargetName="Stop1" Storyboard.TargetProperty="Color" To="#232329" Duration="0:0:0.2"/>
+                                            <ColorAnimation Storyboard.TargetName="Stop2" Storyboard.TargetProperty="Color" To="#232329" Duration="0:0:0.2"/>
+                                            <ColorAnimation Storyboard.TargetName="Stop3" Storyboard.TargetProperty="Color" To="#232329" Duration="0:0:0.2"/>
+                                            <DoubleAnimation Storyboard.TargetName="Stop1" Storyboard.TargetProperty="Offset" To="0.0" Duration="0:0:0.1"/>
+                                            <DoubleAnimation Storyboard.TargetName="Stop2" Storyboard.TargetProperty="Offset" To="0.5" Duration="0:0:0.1"/>
+                                            <DoubleAnimation Storyboard.TargetName="Stop3" Storyboard.TargetProperty="Offset" To="1.0" Duration="0:0:0.1"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <Style x:Key="WindowControlButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="Width" Value="45"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2D2D35"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        
+        <Style x:Key="NewsCardButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#16161A"/>
+            <Setter Property="BorderBrush" Value="#1E1E22"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="CardBorder" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                CornerRadius="8" 
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CardBorder" Property="Background" Value="#1A1A22"/>
+                                <Setter TargetName="CardBorder" Property="BorderBrush" Value="#4D7CFE"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="CardBorder" Property="Background" Value="#131317"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Application.Resources>
+</Application>

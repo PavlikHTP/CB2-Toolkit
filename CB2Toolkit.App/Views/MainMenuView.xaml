@@ -1,0 +1,146 @@
+<UserControl x:Class="CB2Toolkit.Views.MainMenuView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="618" d:DesignWidth="950">
+    
+    <UserControl.Resources>
+        <Storyboard x:Key="LoadingAnimation" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetName="Dot1" Storyboard.TargetProperty="Opacity" From="0.2" To="1" Duration="0:0:0.5" AutoReverse="True" BeginTime="0:0:0.0"/>
+            <DoubleAnimation Storyboard.TargetName="Dot2" Storyboard.TargetProperty="Opacity" From="0.2" To="1" Duration="0:0:0.5" AutoReverse="True" BeginTime="0:0:0.15"/>
+            <DoubleAnimation Storyboard.TargetName="Dot3" Storyboard.TargetProperty="Opacity" From="0.2" To="1" Duration="0:0:0.5" AutoReverse="True" BeginTime="0:0:0.3"/>
+        </Storyboard>
+
+        <Storyboard x:Key="SwitchFromLoadingToContentAnimation">
+            <DoubleAnimation Storyboard.TargetName="LoadingPanel" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.25"/>
+            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="LoadingPanel" Storyboard.TargetProperty="Visibility" BeginTime="0:0:0.25">
+                <DiscreteObjectKeyFrame KeyTime="0:0:0" Value="{x:Static Visibility.Collapsed}"/>
+            </ObjectAnimationUsingKeyFrames>
+            <DoubleAnimation Storyboard.TargetName="NewsItemsControl" Storyboard.TargetProperty="Opacity" From="0" To="1" BeginTime="0:0:0.20" Duration="0:0:0.45"/>
+            <DoubleAnimation Storyboard.TargetName="NewsTransform" Storyboard.TargetProperty="Y" From="40" To="0" BeginTime="0:0:0.20" Duration="0:0:0.45">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <Storyboard x:Key="FadeInContentOnlyAnimation">
+            <DoubleAnimation Storyboard.TargetName="NewsItemsControl" Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.35"/>
+            <DoubleAnimation Storyboard.TargetName="NewsTransform" Storyboard.TargetProperty="Y" From="20" To="0" Duration="0:0:0.35">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <Style x:Key="ModernDarkScrollbar" TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Background="{TemplateBinding Background}">
+                            <Track Name="PART_Track" IsDirectionReversed="True">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="#2B2B30" CornerRadius="4"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    
+    <UserControl.Triggers>
+        <EventTrigger RoutedEvent="UserControl.Loaded">
+            <BeginStoryboard Storyboard="{StaticResource LoadingAnimation}"/>
+        </EventTrigger>
+    </UserControl.Triggers>
+    
+    <Grid Background="#121214">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" Background="#16161A" BorderBrush="#1E1E22" BorderThickness="0,0,1,0">
+            <Grid Margin="20,30">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="NAVIGATION HUB" FontSize="11" FontWeight="Bold" Foreground="#4B5563" Margin="5,0,0,25"/>
+
+                <StackPanel Grid.Row="1">
+                    <Button Content="AngelScript Editor" Style="{StaticResource HubMenuButtonStyle}" Margin="0,0,0,10" Click="OpenEditor_Click" Cursor="Hand"/>
+                    <Button Content="Addon Editor" Style="{StaticResource HubMenuButtonStyle}" Margin="0,0,0,10" Click="OpenAddonEditor_Click" Cursor="Hand"/>
+                    <Button Content="Settings" Style="{StaticResource HubMenuButtonStyle}" Margin="0,0,0,10" Click="OpenSettings_Click" Cursor="Hand"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Column="1" Margin="40,30">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="0,0,0,25">
+                <TextBlock Text="LATEST UPDATES &amp; NEWS" FontSize="11" FontWeight="Bold" Foreground="#4B5563"/>
+                <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,0"/>
+            </StackPanel>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" ScrollViewer.CanContentScroll="False">
+                <ScrollViewer.Resources>
+                    <Style TargetType="ScrollBar" BasedOn="{StaticResource ModernDarkScrollbar}"/>
+                </ScrollViewer.Resources>
+                <Grid>
+                    <StackPanel x:Name="LoadingPanel" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,100,0,0">
+                        <TextBlock Text="Fetching" Foreground="#9CA3AF" FontSize="15" FontWeight="SemiBold" FontFamily="Segoe UI" Margin="0,0,6,0"/>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,4,0,0">
+                            <Ellipse x:Name="Dot1" Width="4" Height="4" Fill="#4D7CFE" Margin="2,0" Opacity="0.2"/>
+                            <Ellipse x:Name="Dot2" Width="4" Height="4" Fill="#4D7CFE" Margin="2,0" Opacity="0.2"/>
+                            <Ellipse x:Name="Dot3" Width="4" Height="4" Fill="#4D7CFE" Margin="2,0" Opacity="0.2"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <ItemsControl x:Name="NewsItemsControl" VerticalAlignment="Top" Opacity="0">
+                        <ItemsControl.RenderTransform>
+                            <TranslateTransform x:Name="NewsTransform" Y="40"/>
+                        </ItemsControl.RenderTransform>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource NewsCardButtonStyle}" VerticalAlignment="Top" Click="OpenNews_Click" Margin="0,0,10,15" Cursor="Hand">
+                                    <StackPanel>
+                                        <TextBlock Text="⚠ The news version is newer than the application! Stability issues may occur." 
+                                                   Foreground="#EF4444" FontSize="12" FontWeight="Bold" 
+                                                   Visibility="{Binding WarningVisibility}" Margin="0,0,0,12"/>
+                                        <DockPanel LastChildFill="False">
+                                            <Border Background="#4D7CFE" CornerRadius="4" Padding="8,3" VerticalAlignment="Center" DockPanel.Dock="Left">
+                                                <TextBlock Text="{Binding Tag}" FontSize="10" FontWeight="Bold" Foreground="White"/>
+                                            </Border>
+                                            <TextBlock Text="{Binding Date}" Foreground="#6B7280" FontSize="12" DockPanel.Dock="Right" VerticalAlignment="Center"/>
+                                        </DockPanel>
+                                        
+                                        <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="Bold" Foreground="#F3F4F6" Margin="0,12,0,8"/>
+                                        <TextBlock Text="{Binding Preview}" Foreground="#9CA3AF" FontSize="13" TextWrapping="Wrap" LineHeight="20"/>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>
