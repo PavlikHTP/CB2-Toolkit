@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <Version>0.1.0-alpha</Version>
+    </PropertyGroup>
+    
+    <ItemGroup>
+      <Reference Include="FastXCollections">
+        <HintPath>..\libs\FastXCollections.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+    
+    <ItemGroup>
+      <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
+      <PackageReference Include="DiscordRichPresence" Version="1.6.1.70" />
+    </ItemGroup>
+
+</Project>

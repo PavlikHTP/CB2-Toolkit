@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <UseWPF>true</UseWPF>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\CB2Toolkit.Core\CB2Toolkit.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Page Update="Views\AngelScriptEditorView.xaml">
+        <Generator>MSBuild:Compile</Generator>
+        <XamlRuntime>Wpf</XamlRuntime>
+        <SubType>Designer</SubType>
+      </Page>
+      <Page Update="Views\ModernMessageBox.xaml">
+        <Generator>MSBuild:Compile</Generator>
+        <XamlRuntime>Wpf</XamlRuntime>
+        <SubType>Designer</SubType>
+      </Page>
+    </ItemGroup>
+
+</Project>
+
+<!-- dotnet publish CB2Toolkit.App/CB2Toolkit.App.csproj -c Release -r win-x64 &#45;&#45;self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true-->
