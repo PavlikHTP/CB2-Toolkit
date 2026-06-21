@@ -1,10 +1,4 @@
-namespace CB2Toolkit.Core.Utilities;
-
-public static class AngelScriptSyntax
-{
-    public static string GetFallbackXshd()
-    {
-        return @"<SyntaxDefinition name='AngelScript' xmlns='http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008'>
+<SyntaxDefinition name='AngelScript' xmlns='http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008'>
     <Color name='Comment' foreground='#7A7A7A' />
     <Color name='Keyword' foreground='#CE7E3B' fontWeight='bold' />
     <Color name='Directive' foreground='#4D7CFE' fontWeight='bold' />
@@ -19,8 +13,8 @@ public static class AngelScriptSyntax
         <Span color='Comment' multiline='true' begin='/\*' end='\*/' />
         
         <Span color='String' multiline='true'>
-            <Begin>""""""""""""</Begin>
-            <End>""""""""""""</End>
+            <Begin>""""""</Begin>
+            <End>""""""</End>
         </Span>
 
         <Rule color='String'>&quot;(?:[^&quot;\\]|\\.)*&quot;</Rule>
@@ -69,6 +63,4 @@ public static class AngelScriptSyntax
         <Rule color='Field'>(?&lt;=\b[A-Za-z_][A-Za-z0-9_]*(?:\s+|\s*@\s*))[A-Za-z_][A-Za-z0-9_]*\b(?=\s*[;=,])</Rule>
         <Rule color='ClassType'>(?&lt;=\bnamespace\s+)[A-Za-z_][A-Za-z0-9_]*\b</Rule>
     </RuleSet>
-</SyntaxDefinition>";
-    }
-}
+</SyntaxDefinition>

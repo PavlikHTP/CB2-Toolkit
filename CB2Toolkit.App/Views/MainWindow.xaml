@@ -30,14 +30,14 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="32"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
+                
                 <Border Grid.Row="0" Background="#16161A" BorderBrush="#1E1E22" BorderThickness="0,0,0,1" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                     <Grid>
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="15,0,0,0">
-                            
                             <TextBlock Text="{x:Static core:AppMetadata.Title}" Foreground="#9CA3AF" FontSize="12" FontWeight="SemiBold"/>
-                            
                             <TextBlock Text="{x:Static core:AppMetadata.VersionString}" Foreground="#6B7280" FontSize="10" VerticalAlignment="Bottom" Margin="6,0,0,1"/>
                         </StackPanel>
 
@@ -59,7 +59,56 @@
                         </StackPanel>
                     </Grid>
                 </Border>
-                <ContentControl x:Name="MainContentHolder" Grid.Row="1"/>
+
+                <Border x:Name="UpdateBanner" Grid.Row="1" Background="#1E1B4B" BorderBrush="#312E81" BorderThickness="0,0,0,1" Visibility="Collapsed" Padding="15,8">
+                    <Grid>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock x:Name="UpdateText" Foreground="#E0E7FF" FontSize="13" VerticalAlignment="Center" FontWeight="Medium"/>
+                            <Button Content="Download" Margin="15,0,0,0" Padding="12,4" Background="#4F46E5" Foreground="White" FontWeight="SemiBold" FontSize="12" Click="DownloadUpdate_Click">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#4338CA"/>
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
+                        <Button Content="✕" HorizontalAlignment="Right" VerticalAlignment="Center" Background="Transparent" Foreground="#A5B4FC" FontSize="14" BorderThickness="0" Cursor="Hand" Click="CloseBanner_Click">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}">
+                                                    <ContentPresenter/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Foreground" Value="White"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </Grid>
+                </Border>
+
+                <ContentControl x:Name="MainContentHolder" Grid.Row="2"/>
             </Grid>
         </Border>
     </Grid>

@@ -629,13 +629,124 @@ public partial class AngelScriptEditorView : UserControl
 
         string? xshdCode = await TryFetchStringAsync(primaryUrl) ?? await TryFetchStringAsync(secondaryUrl);
 
-        if (!string.IsNullOrWhiteSpace(xshdCode) && TryApplyHighlighting(xshdCode))
+        if (!string.IsNullOrWhiteSpace(xshdCode))
         {
-            return;
+            xshdCode = await EnhanceXshdWithRemoteClassesAsync(xshdCode);
+            if (TryApplyHighlighting(xshdCode))
+            {
+                return;
+            }
         }
 
-        ApplyFallbackHighlighting();
+        await ApplyFallbackHighlightingAsync();
     }
+
+    private async Task ApplyFallbackHighlightingAsync()
+{
+    try
+    {
+        string fallbackXshd = AngelScriptSyntax.GetFallbackXshd();
+        fallbackXshd = await EnhanceXshdWithRemoteClassesAsync(fallbackXshd);
+        using var reader = new XmlTextReader(new StringReader(fallbackXshd));
+        CodeEditor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+    }
+    catch (Exception ex)
+    {
+        LoggerService.Instance.LogError($"[Editor Error] Failed to load local fallback: {ex.Message}");
+    }
+}
+
+private bool TryApplyHighlighting(string xshdContent)
+{
+    try
+    {
+        using var reader = new XmlTextReader(new StringReader(xshdContent));
+        CodeEditor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+        return true;
+    }
+    catch
+    {
+        return false;
+    }
+}
+
+private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
+{
+    try
+    {
+        var settings = SettingsService.Instance.Current;
+        bool isGitHub = settings.FetchPriority == FetchPrioritySource.GitHub;
+        string primaryJsonUrl = isGitHub ? settings.CompletionGitHubUrl : settings.CompletionPastebinUrl;
+        string secondaryJsonUrl = isGitHub ? settings.CompletionPastebinUrl : settings.CompletionGitHubUrl;
+
+        string? json = await TryFetchStringAsync(primaryJsonUrl) ?? await TryFetchStringAsync(secondaryJsonUrl);
+        if (string.IsNullOrWhiteSpace(json)) return xshdCode;
+
+        var completions = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(json);
+        if (completions == null || completions.Count == 0) return xshdCode;
+
+        var doc = new XmlDocument();
+        doc.LoadXml(xshdCode);
+
+        var root = doc.DocumentElement;
+        if (root == null) return xshdCode;
+        string ns = root.NamespaceURI;
+
+        var firstRuleSet = doc.SelectSingleNode("//*[local-name()='RuleSet']");
+        if (firstRuleSet == null) return xshdCode;
+
+        var classes = completions.Keys.Where(k => k != "Global").ToList();
+        if (classes.Count > 0)
+        {
+            var classColorNode = doc.CreateElement("Color", ns);
+            classColorNode.SetAttribute("name", "DynamicClasses");
+            classColorNode.SetAttribute("foreground", "#4EC9B0");
+            classColorNode.SetAttribute("fontWeight", "bold");
+            root.InsertBefore(classColorNode, firstRuleSet);
+
+            var classKeywordsNode = doc.CreateElement("Keywords", ns);
+            classKeywordsNode.SetAttribute("color", "DynamicClasses");
+            foreach (var cls in classes)
+            {
+                var wordNode = doc.CreateElement("Word", ns);
+                wordNode.InnerText = cls;
+                classKeywordsNode.AppendChild(wordNode);
+            }
+            firstRuleSet.AppendChild(classKeywordsNode);
+        }
+
+        if (completions.TryGetValue("Global", out var globals) && globals.Count > 0)
+        {
+            var methodColorNode = doc.CreateElement("Color", ns);
+            methodColorNode.SetAttribute("name", "DynamicMethods");
+            methodColorNode.SetAttribute("foreground", "#DCDCAA");
+            root.InsertBefore(methodColorNode, firstRuleSet);
+
+            var methodKeywordsNode = doc.CreateElement("Keywords", ns);
+            methodKeywordsNode.SetAttribute("color", "DynamicMethods");
+            foreach (var methodKey in globals.Keys)
+            {
+                string cleanMethodName = methodKey.Split('(')[0].Trim();
+                if (!string.IsNullOrEmpty(cleanMethodName))
+                {
+                    var wordNode = doc.CreateElement("Word", ns);
+                    wordNode.InnerText = cleanMethodName;
+                    methodKeywordsNode.AppendChild(wordNode);
+                }
+            }
+            firstRuleSet.AppendChild(methodKeywordsNode);
+        }
+
+        using var sw = new StringWriter();
+        using var xw = XmlWriter.Create(sw);
+        doc.Save(xw);
+        return sw.ToString();
+    }
+    catch
+    {
+        return xshdCode;
+    }
+}
 
     private async Task<string?> TryFetchStringAsync(string url)
     {
@@ -650,21 +761,7 @@ public partial class AngelScriptEditorView : UserControl
             return null;
         }
     }
-
-    private bool TryApplyHighlighting(string xshdContent)
-    {
-        try
-        {
-            using var reader = new XmlTextReader(new StringReader(xshdContent));
-            CodeEditor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
+    
     private void ApplyFallbackHighlighting()
     {
         try
@@ -831,8 +928,8 @@ public partial class AngelScriptEditorView : UserControl
         {
             var result = ModernMessageBox.Show(
                 Window.GetWindow(this),
-                $"Файл '{Path.GetFileName(fullPath)}' был изменен другой программой. Перезагрузить и потерять изменения?",
-                "Файл изменен",
+                $"The file '{Path.GetFileName(fullPath)}' has been modified by another program. Reload and lose changes?",
+                "File Modified",
                 ModernBoxType.Question
             );
 

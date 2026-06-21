@@ -13,7 +13,7 @@ public class AppSettings
     public string HighlightPastebinUrl { get; set; } = "https://pastebin.com/raw/ebDBExtv";
     
     public string CompletionGitHubUrl { get; set; } = "https://raw.githubusercontent.com/pavlikHTP/CB2Toolkit/main/completion.json";
-    public string CompletionPastebinUrl { get; set; } = "https://pastebin.com/raw/greetings";
+    public string CompletionPastebinUrl { get; set; } = "https://pastebin.com/raw/tF3w44fT";
     
     public string AngelScriptCompilerPath { get; set; } = "";
 

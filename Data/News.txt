@@ -1,0 +1,12 @@
+[NEWS_BLOCK]
+[TAG]Alpha Test[/TAG]
+[DATE]21.06.2026[/DATE]
+[TITLE]CB2Toolkit Alpha Testing Begins[/TITLE]
+[PREVIEW]The alpha testing phase for CB2Toolkit is now live, featuring the newly implemented AngelScript and Addon editor modules.[/PREVIEW]
+[CONTENT]We are excited to announce the official launch of the CB2Toolkit alpha test.
+
+Currently, the AngelScript editor and Addon editor modules are available for use and testing. Other toolkit features are under active development and will be rolled out in future updates.
+
+Download the alpha build, try it out, and please report any bugs or share your feedback with us![/CONTENT]
+[VERSION]0.1.0-alpha[/VERSION]
+[/NEWS_BLOCK]

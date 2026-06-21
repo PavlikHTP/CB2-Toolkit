@@ -59,6 +59,7 @@ public partial class App : Application
             }
 
             DiscordRpcService.Initialize();
+            _ = UpdateService.Instance.CheckForUpdatesAsync();
         }
         catch (Exception ex)
         {

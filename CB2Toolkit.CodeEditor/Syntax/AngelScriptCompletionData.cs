@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -74,7 +75,10 @@ public class AngelScriptCompletionData(string text, CompletionType type = Comple
         }
     }
 
-    public object Description => null;
+    public object? Description { get; set; }
+    
+    object? ICompletionData.Description => null;
+    
     public double Priority => Type switch
     {
         CompletionType.Keyword => 1.0,
@@ -87,6 +91,7 @@ public class AngelScriptCompletionData(string text, CompletionType type = Comple
 
     public void Complete(ICSharpCode.AvalonEdit.Editing.TextArea textArea, ICSharpCode.AvalonEdit.Document.ISegment completionSegment, EventArgs insertionEventArgs)
     {
-        textArea.Document.Replace(completionSegment, Text);
+        string insertionText = Type == CompletionType.Function ? Text + ";" : Text;
+        textArea.Document.Replace(completionSegment, insertionText);
     }
 }

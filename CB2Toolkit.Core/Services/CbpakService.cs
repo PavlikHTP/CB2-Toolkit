@@ -1,5 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using CB2Toolkit.Core.Utilities;
 
 namespace CB2Toolkit.Core.Services;
@@ -29,7 +33,6 @@ public class CbpakService
         int repeatCount = 1;
 
         List<object> fileEntries = new();
-        // string tempPak = Path.Combine(directory, $"{destName}_temp.pak");
         string finalPak = Path.Combine(directory, $"{destName}.cbpak");
 
         FileStream pakStream = new FileStream(finalPak, FileMode.Create, FileAccess.Write);
@@ -41,13 +44,10 @@ public class CbpakService
             string fileName = Path.GetFileName(filePath);
             string ext = Path.GetExtension(filePath).TrimStart('.');
 
-            if (fileName.Equals("addons.jsonc", StringComparison.OrdinalIgnoreCase) ||
-                fileName.Equals($"{destName}.cbpak", StringComparison.OrdinalIgnoreCase) ||
-                ext.Equals("cbpak", StringComparison.OrdinalIgnoreCase) ||
-                _blockedExtensions.Contains(ext))
-            {
-                continue;
-            }
+            if (fileName.Equals("addons.jsonc", StringComparison.OrdinalIgnoreCase)) continue;
+            if (ext.Equals("cbpak", StringComparison.OrdinalIgnoreCase)) continue;
+
+            if (_blockedExtensions.Contains(ext)) continue;
 
             FileInfo info = new FileInfo(filePath);
             if (info.Length >= MAX_FILE_SIZE) continue;
@@ -57,9 +57,6 @@ public class CbpakService
                 writer.Write(0);
                 writer.Close();
                 pakStream.Close();
-
-                // await ZstdService.Instance.CompressFileAsync(tempPak, finalPak, 3);
-                // File.Delete(tempPak);
 
                 byte[] compressedBytes = await File.ReadAllBytesAsync(finalPak);
                 string hash = CryptoBuffer.GetMd5FromBytes(compressedBytes).ToLowerInvariant();
@@ -73,15 +70,24 @@ public class CbpakService
 
                 repeatCount++;
                 finalPak = Path.Combine(directory, $"{destName}{repeatCount}.cbpak");
-                // tempPak = Path.Combine(directory, $"{destName}{repeatCount}_temp.pak");
 
                 pakStream = new FileStream(finalPak, FileMode.Create, FileAccess.Write);
                 writer = new BinaryWriter(pakStream);
                 writer.Write(PAK_VERSION);
             }
 
-            string relativePath = Path.GetRelativePath(directory, filePath).Replace('\\', '/');
-            byte[] fileBytes = await File.ReadAllBytesAsync(filePath);
+            string relativePath = Path.GetRelativePath(directory, filePath).Replace('\\', '/').ToLowerInvariant();
+
+            byte[] fileBytes;
+            using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                using (var ms = new MemoryStream())
+                {
+                    await fs.CopyToAsync(ms);
+                    fileBytes = ms.ToArray();
+                }
+            }
+
             string fileHash = CryptoBuffer.GetMd5FromBytes(fileBytes).ToLowerInvariant();
 
             writer.Write(1);
@@ -97,9 +103,6 @@ public class CbpakService
         writer.Write(0);
         writer.Close();
         pakStream.Close();
-
-        // await ZstdService.Instance.CompressFileAsync(tempPak, finalPak, 3);
-        // File.Delete(tempPak);
 
         byte[] finalCompressedBytes = await File.ReadAllBytesAsync(finalPak);
         string finalHash = CryptoBuffer.GetMd5FromBytes(finalCompressedBytes).ToLowerInvariant();
@@ -125,12 +128,6 @@ public class CbpakService
 
     public async Task UnpackFileAsync(string cbpakPath, string destFolder)
     {
-        // string tempPak = cbpakPath + ".tmp";
-        // await ZstdService.Instance.DecompressFileAsync(cbpakPath, tempPak);
-
-        // if (!File.Exists(tempPak)) return;
-
-        // using FileStream fs = new FileStream(tempPak, FileMode.Open, FileAccess.Read);
         using FileStream fs = new FileStream(cbpakPath, FileMode.Open, FileAccess.Read);
         using BinaryReader reader = new BinaryReader(fs);
 
@@ -138,7 +135,6 @@ public class CbpakService
         if (version != PAK_VERSION)
         {
             reader.Close();
-            // File.Delete(tempPak);
             return;
         }
 
@@ -180,6 +176,5 @@ public class CbpakService
         }
 
         reader.Close();
-        // File.Delete(tempPak);
     }
 }

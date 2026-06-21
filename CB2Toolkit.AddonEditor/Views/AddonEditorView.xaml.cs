@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -42,84 +43,60 @@ public partial class AddonEditorView : UserControl
             Dispatcher.Invoke(() => OnFileRenamed(oldPath, newPath));
     }
 
+    private string? ShowInputDialog(string title, string defaultText)
+    {
+        var result = ModernMessageBox.Show(
+            Window.GetWindow(this),
+            $"Please enter the name for {title.ToLower()}:",
+            title,
+            ModernBoxType.Input,
+            defaultText
+        );
+
+        return result.Result == ModernBoxResultType.OK ? result.InputText : null;
+    }
+
     private void ContextMenu_CreateFile_Click(object sender, RoutedEventArgs e)
     {
         FileNode? node = GetNodeFromMenu(sender);
-        string parentPath = _projectFolderPath ?? string.Empty;
+        string? targetDir = node != null
+            ? (node.IsDirectory ? node.FullPath : Path.GetDirectoryName(node.FullPath))
+            : _projectFolderPath;
 
-        if (node != null)
+        if (string.IsNullOrEmpty(targetDir)) return;
+
+        string? name = ShowInputDialog("New File", "newfile.ini");
+        if (string.IsNullOrEmpty(name)) return;
+
+        try
         {
-            parentPath = node.IsDirectory
-                ? node.FullPath
-                : Path.GetDirectoryName(node.FullPath) ?? _projectFolderPath ?? string.Empty;
+            ProjectService.Instance.CreateFile(targetDir, name);
         }
-
-        if (string.IsNullOrEmpty(parentPath) || !Directory.Exists(parentPath)) return;
-
-        string fileName =
-            Microsoft.VisualBasic.Interaction.InputBox("Enter file name (e.g. config.ini):", "Create File",
-                "newfile.ini");
-        if (!string.IsNullOrWhiteSpace(fileName))
+        catch (Exception ex)
         {
-            try
-            {
-                string fullPath = Path.Combine(parentPath, fileName);
-                if (!File.Exists(fullPath))
-                {
-                    File.WriteAllText(fullPath, string.Empty);
-                    LoadProjectTree();
-                }
-                else
-                {
-                    ModernMessageBox.Show(Window.GetWindow(this), "File already exists.", "Warning",
-                        ModernBoxType.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                ModernMessageBox.Show(Window.GetWindow(this), $"Error creating file: {ex.Message}", "Error",
-                    ModernBoxType.Information);
-            }
+            LoggerService.Instance.LogError($"[Create Error] {ex.Message}");
         }
     }
 
     private void ContextMenu_CreateFolder_Click(object sender, RoutedEventArgs e)
     {
         FileNode? node = GetNodeFromMenu(sender);
-        string parentPath = _projectFolderPath ?? string.Empty;
+        string? targetDir = node != null
+            ? (node.IsDirectory ? node.FullPath : Path.GetDirectoryName(node.FullPath))
+            : _projectFolderPath;
 
-        if (node != null)
+        if (string.IsNullOrEmpty(targetDir)) return;
+
+        string? name = ShowInputDialog("New Folder", "NewFolder");
+        if (string.IsNullOrEmpty(name)) return;
+
+        try
         {
-            parentPath = node.IsDirectory
-                ? node.FullPath
-                : Path.GetDirectoryName(node.FullPath) ?? _projectFolderPath ?? string.Empty;
+            ProjectService.Instance.CreateDirectory(targetDir, name);
         }
-
-        if (string.IsNullOrEmpty(parentPath) || !Directory.Exists(parentPath)) return;
-
-        string folderName =
-            Microsoft.VisualBasic.Interaction.InputBox("Enter folder name:", "Create Folder", "New Folder");
-        if (!string.IsNullOrWhiteSpace(folderName))
+        catch (Exception ex)
         {
-            try
-            {
-                string fullPath = Path.Combine(parentPath, folderName);
-                if (!Directory.Exists(fullPath))
-                {
-                    Directory.CreateDirectory(fullPath);
-                    LoadProjectTree();
-                }
-                else
-                {
-                    ModernMessageBox.Show(Window.GetWindow(this), "Folder already exists.", "Warning",
-                        ModernBoxType.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                ModernMessageBox.Show(Window.GetWindow(this), $"Error creating folder: {ex.Message}", "Error",
-                    ModernBoxType.Information);
-            }
+            LoggerService.Instance.LogError($"[Create Error] {ex.Message}");
         }
     }
 
@@ -447,13 +424,10 @@ public partial class AddonEditorView : UserControl
             try
             {
                 File.WriteAllText(_currentFilePath, CodeEditor.Text);
-                ModernMessageBox.Show(Window.GetWindow(this), "Changes saved successfully!", "Success",
-                    ModernBoxType.Question);
             }
             catch (Exception ex)
             {
-                ModernMessageBox.Show(Window.GetWindow(this), $"Error saving file: {ex.Message}", "Error",
-                    ModernBoxType.Question);
+                LoggerService.Instance.LogError($"[Save Error] Failed to save file: {ex.Message}");
             }
         }
     }
@@ -466,29 +440,34 @@ public partial class AddonEditorView : UserControl
     private void ContextMenu_Rename_Click(object sender, RoutedEventArgs e)
     {
         FileNode? node = GetNodeFromMenu(sender);
-        if (node != null)
+        if (node == null) return;
+        
+        string? newName = ShowInputDialog("Rename", node.Key);
+        if (string.IsNullOrEmpty(newName) || newName == node.Key) return;
+
+        try
         {
-            string oldName = Path.GetFileName(node.FullPath);
-            string newName = Microsoft.VisualBasic.Interaction.InputBox("Enter new name:", "Rename Element", oldName);
-            if (!string.IsNullOrWhiteSpace(newName) && newName != oldName)
-            {
-                try
-                {
-                    ProjectService.Instance.RenameNode(node, newName);
-                }
-                catch (Exception ex)
-                {
-                    ModernMessageBox.Show(Window.GetWindow(this), $"Error renaming element: {ex.Message}", "Error",
-                        ModernBoxType.Information);
-                }
-            }
+            ProjectService.Instance.RenameNode(node, newName);
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"[Rename Error] {ex.Message}");
         }
     }
 
     private void ContextMenu_Delete_Click(object sender, RoutedEventArgs e)
     {
         FileNode? node = GetNodeFromMenu(sender);
-        if (node != null)
+        if (node == null) return;
+        
+        var result = ModernMessageBox.Show(
+            Window.GetWindow(this),
+            $"Delete {node.Key}?",
+            "Confirmation",
+            ModernBoxType.Question
+        );
+
+        if (result.Result == ModernBoxResultType.Yes)
         {
             try
             {
@@ -496,8 +475,7 @@ public partial class AddonEditorView : UserControl
             }
             catch (Exception ex)
             {
-                ModernMessageBox.Show(Window.GetWindow(this), $"Error deleting element: {ex.Message}", "Error",
-                    ModernBoxType.Information);
+                LoggerService.Instance.LogError($"[Delete Error] {ex.Message}");
             }
         }
     }
