@@ -1,7 +1,6 @@
 using System.IO;
 using System.Net.Http;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -13,7 +12,6 @@ using CB2Toolkit.CodeEditor.Models.Enums;
 using CB2Toolkit.CodeEditor.Renderers;
 using CB2Toolkit.CodeEditor.Services;
 using CB2Toolkit.CodeEditor.Syntax;
-using CB2Toolkit.CodeEditor.Themes;
 using CB2Toolkit.CodeEditor.Utils;
 using CB2Toolkit.Core;
 using CB2Toolkit.Core.Models;

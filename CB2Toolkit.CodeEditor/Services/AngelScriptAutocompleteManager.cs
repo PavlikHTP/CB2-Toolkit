@@ -1,11 +1,7 @@
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -15,10 +11,8 @@ using ICSharpCode.AvalonEdit.CodeCompletion;
 using CB2Toolkit.CodeEditor.Models.Enums;
 using CB2Toolkit.CodeEditor.Syntax;
 using CB2Toolkit.CodeEditor.Themes;
-using CB2Toolkit.CodeEditor.Utils;
 using CB2Toolkit.Core.Services;
 using CB2Toolkit.Core.Utilities;
-using CB2Toolkit.Core.Models.Settings;
 using CB2Toolkit.Core.Models.Settings.Enums;
 
 namespace CB2Toolkit.CodeEditor.Services;
