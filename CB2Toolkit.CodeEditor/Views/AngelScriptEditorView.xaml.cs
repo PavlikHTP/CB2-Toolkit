@@ -624,8 +624,8 @@ public partial class AngelScriptEditorView : UserControl
         var settings = SettingsService.Instance.Current;
         bool isGitHub = settings.FetchPriority == FetchPrioritySource.GitHub;
 
-        string primaryUrl = isGitHub ? settings.HighlightGitHubUrl : settings.HighlightPastebinUrl;
-        string secondaryUrl = isGitHub ? settings.HighlightPastebinUrl : settings.HighlightGitHubUrl;
+        string primaryUrl = isGitHub ? settings.SyntaxGitHubUrl : settings.SyntaxPastebinUrl;
+        string secondaryUrl = isGitHub ? settings.SyntaxPastebinUrl : settings.SyntaxGitHubUrl;
 
         string? xshdCode = await TryFetchStringAsync(primaryUrl) ?? await TryFetchStringAsync(secondaryUrl);
 

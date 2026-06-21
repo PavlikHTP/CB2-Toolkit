@@ -6,13 +6,13 @@ public class AppSettings
 {
     public FetchPrioritySource FetchPriority { get; set; } = FetchPrioritySource.GitHub;
     
-    public string GitHubNewsUrl { get; set; } = "https://raw.githubusercontent.com/pavlikHTP/CB2Toolkit/main/news.txt";
+    public string GitHubNewsUrl { get; set; } = "https://gist.githubusercontent.com/PavlikHTP/d630c0d7d5ff3828aa5b56295a39a0a8/raw/6c33eda9b6c4454a43de1e951c4707db227704b5/gistfile1.txt";
     public string PastebinNewsUrl { get; set; } = "https://pastebin.com/raw/WhsswfeZ";
-    
-    public string HighlightGitHubUrl { get; set; } = "https://raw.githubusercontent.com/pavlikHTP/CB2Toolkit/main/angelscript.xshd";
-    public string HighlightPastebinUrl { get; set; } = "https://pastebin.com/raw/ebDBExtv";
-    
-    public string CompletionGitHubUrl { get; set; } = "https://raw.githubusercontent.com/pavlikHTP/CB2Toolkit/main/completion.json";
+
+    public string SyntaxGitHubUrl { get; set; } = "https://gist.githubusercontent.com/PavlikHTP/67caf1a443a2e7e49573829c07014815/raw/6bba24d1cc990a3d09e5475b419168f074a7cc47/gistfile1.txt";
+    public string SyntaxPastebinUrl { get; set; } = "https://pastebin.com/raw/ebDBExtv";
+
+    public string CompletionGitHubUrl { get; set; } = "https://gist.githubusercontent.com/PavlikHTP/229677b25145dc74e5fe1fb24beba81c/raw/c808482897f6102948e19e42ac0b03c75e6a1266/gistfile1.txt";
     public string CompletionPastebinUrl { get; set; } = "https://pastebin.com/raw/tF3w44fT";
     
     public string AngelScriptCompilerPath { get; set; } = "";

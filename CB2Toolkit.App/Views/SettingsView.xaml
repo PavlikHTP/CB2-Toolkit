@@ -325,22 +325,22 @@
                     <ComboBoxItem Content="PasteBin" Tag="PasteBin"/>
                 </ComboBox>
 
-                <TextBlock Text="GitHub News Raw URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="GitHub News URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <TextBox x:Name="GitHubUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24"/>
 
-                <TextBlock Text="Pastebin News Raw URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="Pastebin News URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <TextBox x:Name="PastebinUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24"/>
 
-                <TextBlock Text="GitHub AngelScript XSHD Highlighting URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="GitHub AngelScript XSHD Syntax URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <TextBox x:Name="HighlightGitHubUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24"/>
 
-                <TextBlock Text="Pastebin AngelScript XSHD Highlighting URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="Pastebin AngelScript XSHD Syntax URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <TextBox x:Name="HighlightPastebinUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24"/>
 
-                <TextBlock Text="GitHub AngelScript Autocompletion JSON URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="GitHub AngelScript Autocompletion URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <TextBox x:Name="CompletionGitHubUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24"/>
 
-                <TextBlock Text="Pastebin AngelScript Autocompletion JSON URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="Pastebin AngelScript Autocompletion URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <TextBox x:Name="CompletionPastebinUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24"/>
 
                 <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,24"/>

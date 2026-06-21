@@ -29,8 +29,8 @@ public partial class SettingsView : UserControl
 
         GitHubUrlTextBox.Text = settings.GitHubNewsUrl;
         PastebinUrlTextBox.Text = settings.PastebinNewsUrl;
-        HighlightGitHubUrlTextBox.Text = settings.HighlightGitHubUrl;
-        HighlightPastebinUrlTextBox.Text = settings.HighlightPastebinUrl;
+        HighlightGitHubUrlTextBox.Text = settings.SyntaxGitHubUrl;
+        HighlightPastebinUrlTextBox.Text = settings.SyntaxPastebinUrl;
         CompletionGitHubUrlTextBox.Text = settings.CompletionGitHubUrl;
         CompletionPastebinUrlTextBox.Text = settings.CompletionPastebinUrl;
         AsCompilerPathTextBox.Text = settings.AngelScriptCompilerPath;
@@ -55,8 +55,8 @@ public partial class SettingsView : UserControl
     {
         settings.GitHubNewsUrl = GitHubUrlTextBox.Text.Trim();
         settings.PastebinNewsUrl = PastebinUrlTextBox.Text.Trim();
-        settings.HighlightGitHubUrl = HighlightGitHubUrlTextBox.Text.Trim();
-        settings.HighlightPastebinUrl = HighlightPastebinUrlTextBox.Text.Trim();
+        settings.SyntaxGitHubUrl = HighlightGitHubUrlTextBox.Text.Trim();
+        settings.SyntaxPastebinUrl = HighlightPastebinUrlTextBox.Text.Trim();
         settings.CompletionGitHubUrl = CompletionGitHubUrlTextBox.Text.Trim();
         settings.CompletionPastebinUrl = CompletionPastebinUrlTextBox.Text.Trim();
         settings.AngelScriptCompilerPath = AsCompilerPathTextBox.Text.Trim();
