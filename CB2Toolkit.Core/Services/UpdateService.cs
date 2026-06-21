@@ -24,7 +24,8 @@ public class UpdateService
     {
         try
         {
-            string url = $"https://api.github.com/repos/{AppMetadata.GithubOwner}/{AppMetadata.GithubRepo}/releases/latest";
+ 
+            string url = $"https://api.github.com/repos/{AppMetadata.GithubOwner}/{AppMetadata.GithubRepo}/releases";
             HttpResponseMessage response = await _httpClient.GetAsync(url);
 
             if (!response.IsSuccessStatusCode)
@@ -34,32 +35,53 @@ public class UpdateService
 
             string json = await response.Content.ReadAsStringAsync();
             using JsonDocument doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
             
-            if (root.TryGetProperty("tag_name", out JsonElement tagProperty))
+            if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
             {
-                string tagName = tagProperty.GetString() ?? string.Empty;
-                string cleanVersion = tagName.TrimStart('v', 'V').Split('-')[0];
+                var latestRelease = doc.RootElement[0];
 
-                if (Version.TryParse(cleanVersion, out Version? latestVersion))
+                if (latestRelease.TryGetProperty("tag_name", out JsonElement tagProperty))
                 {
-                    Version currentVersion = AppMetadata.CurrentVersion;
+                    string tagName = tagProperty.GetString() ?? string.Empty;
+                    
 
-                    if (latestVersion > currentVersion)
+                    string cleanTag = tagName.TrimStart('v', 'V'); 
+                    string[] parts = cleanTag.Split('-');
+                    string versionPart = parts[0];
+                    bool isRemotePrerelease = parts.Length > 1; 
+
+                    if (Version.TryParse(versionPart, out Version? latestVersion))
                     {
-                        string downloadUrl = AppMetadata.GithubUrl;
-                        if (root.TryGetProperty("html_url", out JsonElement urlProperty))
+                        Version currentVersion = AppMetadata.CurrentVersion;
+
+                        bool hasUpdate = false;
+                        
+                        if (latestVersion > currentVersion)
                         {
-                            downloadUrl = urlProperty.GetString() ?? AppMetadata.GithubUrl;
+                            hasUpdate = true;
+                        }
+                        else if (latestVersion == currentVersion && !isRemotePrerelease)
+                        {
+                            hasUpdate = true; 
                         }
 
-                        OnUpdateAvailable?.Invoke(tagName, downloadUrl);
+                        if (hasUpdate)
+                        {
+                            string downloadUrl = AppMetadata.GithubUrl;
+                            if (latestRelease.TryGetProperty("html_url", out JsonElement urlProperty))
+                            {
+                                downloadUrl = urlProperty.GetString() ?? AppMetadata.GithubUrl;
+                            }
+
+                            OnUpdateAvailable?.Invoke(tagName, downloadUrl);
+                        }
                     }
                 }
             }
         }
         catch
         {
+    
         }
     }
 }
