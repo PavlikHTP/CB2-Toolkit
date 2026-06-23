@@ -5,6 +5,7 @@ using CB2Toolkit.AddonEditor.Views;
 using CB2Toolkit.CodeEditor.Views;
 using CB2Toolkit.Core.Models;
 using CB2Toolkit.Core.Services;
+using CB2Toolkit.UIEditor.Views;
 
 namespace CB2Toolkit.Views;
 
@@ -16,7 +17,6 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         MainContentHolder.Content = new MainMenuView();
-
         UpdateService.Instance.OnUpdateAvailable += ShowUpdateBanner;
     }
 
@@ -28,6 +28,11 @@ public partial class MainWindow : Window
     public void NavigateToAddonEditor()
     {
         MainContentHolder.Content = new AddonEditorView();
+    }
+    
+    public void NavigateToUIEditor()
+    {
+        MainContentHolder.Content = new UIEditorView();
     }
 
     public void NavigateToMenu()
@@ -75,6 +80,16 @@ public partial class MainWindow : Window
     private void CloseBanner_Click(object sender, RoutedEventArgs e)
     {
         UpdateBanner.Visibility = Visibility.Collapsed;
+    }
+
+    private void VoiceCall_Click(object sender, RoutedEventArgs e)
+    {
+        var callWindow = new VoiceWindow
+        {
+            Owner = this,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        callWindow.Show();
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => DragMove();

@@ -340,9 +340,6 @@
                 <TextBlock Text="GitHub AngelScript Autocompletion URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <TextBox x:Name="CompletionGitHubUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24"/>
 
-                <TextBlock Text="Pastebin AngelScript Autocompletion URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBox x:Name="CompletionPastebinUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24"/>
-
                 <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,24"/>
 
                 <TextBlock Text="EDITOR &amp; ENVIRONMENT" FontSize="12" FontWeight="Bold" Foreground="#4D7CFE" Margin="0,0,0,16"/>

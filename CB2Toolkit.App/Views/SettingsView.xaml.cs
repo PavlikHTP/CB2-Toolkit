@@ -6,8 +6,8 @@ using System.Windows.Media;
 using CB2Toolkit.CodeEditor.Models.Enums;
 using CB2Toolkit.CodeEditor.Views;
 using CB2Toolkit.Core;
+using CB2Toolkit.Core.Models.Enums;
 using CB2Toolkit.Core.Models.Settings;
-using CB2Toolkit.Core.Models.Settings.Enums;
 using CB2Toolkit.Core.Services;
 using Microsoft.Win32;
 
@@ -32,7 +32,6 @@ public partial class SettingsView : UserControl
         HighlightGitHubUrlTextBox.Text = settings.SyntaxGitHubUrl;
         HighlightPastebinUrlTextBox.Text = settings.SyntaxPastebinUrl;
         CompletionGitHubUrlTextBox.Text = settings.CompletionGitHubUrl;
-        CompletionPastebinUrlTextBox.Text = settings.CompletionPastebinUrl;
         AsCompilerPathTextBox.Text = settings.AngelScriptCompilerPath;
         FontSizeSlider.Value = settings.EditorFontSize;
         PriorityComboBox.SelectedValue = settings.FetchPriority.ToString();
@@ -58,7 +57,6 @@ public partial class SettingsView : UserControl
         settings.SyntaxGitHubUrl = HighlightGitHubUrlTextBox.Text.Trim();
         settings.SyntaxPastebinUrl = HighlightPastebinUrlTextBox.Text.Trim();
         settings.CompletionGitHubUrl = CompletionGitHubUrlTextBox.Text.Trim();
-        settings.CompletionPastebinUrl = CompletionPastebinUrlTextBox.Text.Trim();
         settings.AngelScriptCompilerPath = AsCompilerPathTextBox.Text.Trim();
         settings.EditorFontSize = FontSizeSlider.Value;
 

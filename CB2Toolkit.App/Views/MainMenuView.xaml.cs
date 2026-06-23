@@ -118,4 +118,10 @@ public partial class MainMenuView : UserControl
             }
         }
     }
+
+    private void OpenUIEditor_Click(object sender, RoutedEventArgs e)
+    {
+        MainWindow mainWindow = Application.Current.MainWindow as MainWindow;
+        mainWindow?.NavigateToUIEditor();
+    }
 }

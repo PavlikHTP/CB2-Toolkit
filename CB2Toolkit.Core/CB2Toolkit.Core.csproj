@@ -13,7 +13,9 @@
     
     <ItemGroup>
       <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
+      <PackageReference Include="Concentus" Version="2.2.2" />
       <PackageReference Include="DiscordRichPresence" Version="1.6.1.70" />
+      <PackageReference Include="NAudio" Version="2.3.0" />
     </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
-namespace CB2Toolkit.Core.Models.Settings.Enums;
+namespace CB2Toolkit.Core.Models.Enums;
 
 public enum FetchPrioritySource
 {

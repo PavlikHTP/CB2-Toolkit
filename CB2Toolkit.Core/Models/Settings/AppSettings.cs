@@ -1,4 +1,4 @@
-using CB2Toolkit.Core.Models.Settings.Enums;
+using CB2Toolkit.Core.Models.Enums;
 
 namespace CB2Toolkit.Core.Models.Settings;
 
@@ -13,7 +13,6 @@ public class AppSettings
     public string SyntaxPastebinUrl { get; set; } = "https://pastebin.com/raw/ebDBExtv";
 
     public string CompletionGitHubUrl { get; set; } = "https://gist.githubusercontent.com/PavlikHTP/229677b25145dc74e5fe1fb24beba81c/raw/c808482897f6102948e19e42ac0b03c75e6a1266/gistfile1.txt";
-    public string CompletionPastebinUrl { get; set; } = "https://pastebin.com/raw/tF3w44fT";
     
     public string AngelScriptCompilerPath { get; set; } = "";
 
@@ -25,5 +24,6 @@ public class AppSettings
     public List<string> ExpandedAddonFolders { get; set; } = new();
     public string LastOpenedAngelScriptFilePath { get; set; } = string.Empty;
     public string CustomAngelScriptCompilePath { get; set; } = string.Empty;
+    public string UIEditorCompilePath { get; set; } = string.Empty;
     public HotkeySettings Hotkeys { get; set; } = new();
 }

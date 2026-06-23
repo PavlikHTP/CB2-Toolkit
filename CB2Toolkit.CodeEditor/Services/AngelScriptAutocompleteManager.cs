@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using ICSharpCode.AvalonEdit;
@@ -11,9 +12,9 @@ using ICSharpCode.AvalonEdit.CodeCompletion;
 using CB2Toolkit.CodeEditor.Models.Enums;
 using CB2Toolkit.CodeEditor.Syntax;
 using CB2Toolkit.CodeEditor.Themes;
+using CB2Toolkit.Core.Models.Enums;
 using CB2Toolkit.Core.Services;
 using CB2Toolkit.Core.Utilities;
-using CB2Toolkit.Core.Models.Settings.Enums;
 
 namespace CB2Toolkit.CodeEditor.Services;
 
@@ -30,6 +31,7 @@ public class AngelScriptAutocompleteManager : IDisposable
     private static readonly SolidColorBrush DarkBackground = new((Color)ColorConverter.ConvertFromString("#1E1E1E"));
     private static readonly SolidColorBrush DarkBorder = new((Color)ColorConverter.ConvertFromString("#3E3E42"));
     private static readonly SolidColorBrush LightForeground = new((Color)ColorConverter.ConvertFromString("#D4D4D4"));
+    private static readonly HttpClient SharedHttpClient = new() { Timeout = TimeSpan.FromSeconds(5) };
 
     private readonly TextEditor _editor;
     private CompletionWindow? _completionWindow;
@@ -39,13 +41,21 @@ public class AngelScriptAutocompleteManager : IDisposable
     private static Style? _cachedListBoxStyle;
     private static Style? _cachedItemContainerStyle;
     private System.Windows.Controls.Primitives.Popup? _descriptionPopup;
-    
+
+    private System.Windows.Controls.Primitives.Popup? _signaturePopup;
+    private TextBlock? _signatureTextBlock;
+    private int _signatureStartOffset = -1;
+    private string? _signatureFunctionText;
+    private List<string> _signatureParameters = new();
+    private string _signaturePrefix = string.Empty;
+
     public AngelScriptAutocompleteManager(TextEditor editor)
     {
         _editor = editor ?? throw new ArgumentNullException(nameof(editor));
         InitBaseKeywords();
         _editor.TextArea.TextEntered += TextArea_TextEntered;
         _editor.TextArea.TextEntering += TextArea_TextEntering;
+        _editor.TextArea.Caret.PositionChanged += Caret_PositionChanged;
         _ = LoadRemoteCompletionsAsync();
     }
 
@@ -63,11 +73,8 @@ public class AngelScriptAutocompleteManager : IDisposable
     private async Task LoadRemoteCompletionsAsync()
     {
         var settings = SettingsService.Instance.Current;
-        bool isGitHub = settings.FetchPriority == FetchPrioritySource.GitHub;
-        string primaryUrl = isGitHub ? settings.CompletionGitHubUrl : settings.CompletionPastebinUrl;
-        string secondaryUrl = isGitHub ? settings.CompletionPastebinUrl : settings.CompletionGitHubUrl;
-
-        string? json = await TryFetchStringAsync(primaryUrl) ?? await TryFetchStringAsync(secondaryUrl);
+        string primaryUrl = settings.CompletionGitHubUrl;
+        string? json = await TryFetchStringAsync(primaryUrl);
         if (!string.IsNullOrWhiteSpace(json))
         {
             try
@@ -94,13 +101,12 @@ public class AngelScriptAutocompleteManager : IDisposable
     private async Task<string?> TryFetchStringAsync(string url)
     {
         if (string.IsNullOrWhiteSpace(url)) return null;
-        
+
         for (int attempt = 1; attempt <= 5; attempt++)
         {
             try
             {
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-                return await client.GetStringAsync(url);
+                return await SharedHttpClient.GetStringAsync(url);
             }
             catch
             {
@@ -117,8 +123,6 @@ public class AngelScriptAutocompleteManager : IDisposable
         {
             return;
         }
-
-        if (_completionWindow != null) return;
 
         int offset = _editor.CaretOffset;
         bool isInsideStringOrComment = IsInStringOrComment(offset);
@@ -141,6 +145,14 @@ public class AngelScriptAutocompleteManager : IDisposable
 
         if (isInsideStringOrComment) return;
 
+        if (e.Text == "(")
+        {
+            TriggerSignatureHelp(offset);
+            return;
+        }
+
+        if (_completionWindow != null) return;
+
         if (e.Text == ".")
         {
             ShowMethodsForContext(offset - 1, string.Empty);
@@ -161,7 +173,7 @@ public class AngelScriptAutocompleteManager : IDisposable
             }
 
             string currentWord = _editor.Document.GetText(start, offset - start);
-            
+
             if (currentWord.Length < 1) return;
 
             if (start > 0 && _editor.Document.GetCharAt(start - 1) == '.')
@@ -237,11 +249,14 @@ public class AngelScriptAutocompleteManager : IDisposable
     {
         var paths = new List<string>();
         try
-        {
-            string[] files = Directory.GetFiles(ProjectService.Instance.CurrentFolderPath, "*.*", SearchOption.AllDirectories);
-            foreach (var file in files)
+         {
+            if (!string.IsNullOrEmpty(ProjectService.Instance.CurrentFolderPath) && Directory.Exists(ProjectService.Instance.CurrentFolderPath))
             {
-                paths.Add(Path.GetRelativePath(ProjectService.Instance.CurrentFolderPath, file).Replace('\\', '/'));
+                string[] files = Directory.GetFiles(ProjectService.Instance.CurrentFolderPath, "*.*", SearchOption.AllDirectories);
+                foreach (var file in files)
+                {
+                    paths.Add(Path.GetRelativePath(ProjectService.Instance.CurrentFolderPath, file).Replace('\\', '/'));
+                }
             }
         }
         catch
@@ -269,7 +284,7 @@ public class AngelScriptAutocompleteManager : IDisposable
         }
 
         string currentWord = _editor.Document.GetText(start, offset - start);
-        
+
         List<AngelScriptCompletionData> filtered;
         if (_currentContextMethods != null)
         {
@@ -302,7 +317,7 @@ public class AngelScriptAutocompleteManager : IDisposable
     {
         var suggestions = new List<AngelScriptCompletionData>(_baseKeywords);
         var addedTexts = new HashSet<string>(suggestions.Select(s => s.Text), StringComparer.Ordinal);
-        
+
         if (_remoteCompletions != null)
         {
             foreach (var className in _remoteCompletions.Keys)
@@ -327,7 +342,9 @@ public class AngelScriptAutocompleteManager : IDisposable
             }
         }
 
-        string docText = _editor.Document.GetText(0, wordStartOffset);
+        int scanStart = Math.Max(0, wordStartOffset - 15000);
+        int scanLength = wordStartOffset - scanStart;
+        string docText = _editor.Document.GetText(scanStart, scanLength);
         string cleanText = CleanTextRegex.Replace(docText, " ");
 
         foreach (Match match in FunctionRegex.Matches(cleanText))
@@ -359,7 +376,7 @@ public class AngelScriptAutocompleteManager : IDisposable
                 addedTexts.Add(word);
             }
         }
-        
+
         return suggestions
             .Where(s => s.Text.StartsWith(currentWord, StringComparison.OrdinalIgnoreCase))
             .OrderBy(s => s.Priority)
@@ -377,7 +394,7 @@ public class AngelScriptAutocompleteManager : IDisposable
             start--;
         }
 
-        if (start == dotOffset) return; 
+        if (start == dotOffset) return;
 
         string varName = _editor.Document.GetText(start, dotOffset - start).Trim();
         var methods = new List<AngelScriptCompletionData>();
@@ -389,7 +406,8 @@ public class AngelScriptAutocompleteManager : IDisposable
         }
         else
         {
-            string textBeforeCaret = _editor.Document.GetText(0, start);
+            int scanStart = Math.Max(0, start - 15000);
+            string textBeforeCaret = _editor.Document.GetText(scanStart, start - scanStart);
             string? typeName = ResolveVariableType(varName, textBeforeCaret);
 
             if (!string.IsNullOrEmpty(typeName))
@@ -433,12 +451,12 @@ public class AngelScriptAutocompleteManager : IDisposable
     {
         string pattern = @"\b([A-Za-z_]\w*)\s*@?\s*" + Regex.Escape(varName) + @"\b";
         var matches = Regex.Matches(textBeforeCaret, pattern);
-        
+
         if (matches.Count > 0)
         {
             string typeName = matches[^1].Groups[1].Value;
             string[] primitives = { "if", "for", "while", "return", "new", "void", "int", "float", "double", "bool", "uint", "string" };
-            
+
             if (primitives.Contains(typeName)) return null;
             return typeName;
         }
@@ -449,7 +467,7 @@ public class AngelScriptAutocompleteManager : IDisposable
     {
         var members = new List<AngelScriptCompletionData>();
         string fullText = _editor.Text;
-        
+
         string classPattern = @"\bclass\s+" + Regex.Escape(typeName) + @"\s*\{";
         var match = Regex.Match(fullText, classPattern);
         if (!match.Success) return members;
@@ -474,10 +492,10 @@ public class AngelScriptAutocompleteManager : IDisposable
         {
             string methodName = m.Value;
             if (methodName == "if" || methodName == "while" || methodName == "for" || methodName == "switch") continue;
-            
+
             if (!members.Any(x => x.Text.StartsWith(methodName)))
             {
-                members.Add(new AngelScriptCompletionData(methodName + "()", CompletionType.Function));
+                members.Add(new AngelScriptCompletionData(methodName, CompletionType.Function));
             }
         }
 
@@ -494,88 +512,95 @@ public class AngelScriptAutocompleteManager : IDisposable
         return members;
     }
 
-   private void OpenCompletionWindow(int startOffset, int endOffset, IEnumerable<AngelScriptCompletionData> items)
-{
-    var itemList = items.ToList();
-    int maxLen = itemList.Select(i => i.Text?.Length ?? 0).DefaultIfEmpty(0).Max();
-    double estimatedWidth = (maxLen * 8.2) + 55;
-    double calculatedWidth = Math.Min(Math.Max(estimatedWidth, 200), 550);
-
-    _completionWindow = new CompletionWindow(_editor.TextArea)
+    private void OpenCompletionWindow(int startOffset, int endOffset, IEnumerable<AngelScriptCompletionData> items)
     {
-        StartOffset = startOffset,
-        EndOffset = endOffset,
-        Background = DarkBackground,
-        Foreground = LightForeground,
-        BorderBrush = DarkBorder,
-        Padding = new Thickness(0),
-        BorderThickness = new Thickness(1),
-        Width = calculatedWidth,
-        MaxHeight = 300,
-        AllowsTransparency = true
-    };
+        _editor.TextChanged -= CodeEditor_TextChanged_ForCompletion;
 
-    _completionWindow.CompletionList.Background = DarkBackground;
+        if (_completionWindow != null)
+        {
+            _completionWindow.Close();
+        }
 
-    _descriptionPopup = new System.Windows.Controls.Primitives.Popup
-    {
-        AllowsTransparency = true,
-        PlacementTarget = _completionWindow,
-        Placement = System.Windows.Controls.Primitives.PlacementMode.Right,
-        HorizontalOffset = 4,
-        VerticalOffset = 0,
-        StaysOpen = true
-    };
+        var itemList = items.ToList();
+        int maxLen = itemList.Select(i => i.Text?.Length ?? 0).DefaultIfEmpty(0).Max();
+        double estimatedWidth = (maxLen * 8.2) + 55;
+        double calculatedWidth = Math.Min(Math.Max(estimatedWidth, 200), 550);
 
-    var popupBorder = new Border
-    {
-        Background = DarkBackground,
-        BorderBrush = DarkBorder,
-        BorderThickness = new Thickness(1),
-        Padding = new Thickness(10, 8, 10, 8),
-        CornerRadius = new CornerRadius(3),
-        MinWidth = 150,
-        MaxWidth = 600
-    };
+        _completionWindow = new CompletionWindow(_editor.TextArea)
+        {
+            StartOffset = startOffset,
+            EndOffset = endOffset,
+            Background = DarkBackground,
+            Foreground = LightForeground,
+            BorderBrush = DarkBorder,
+            Padding = new Thickness(0),
+            BorderThickness = new Thickness(1),
+            Width = calculatedWidth,
+            MaxHeight = 300,
+            AllowsTransparency = true
+        };
 
-    var popupText = new TextBlock
-    {
-        Foreground = LightForeground,
-        FontFamily = new FontFamily("Consolas"),
-        FontSize = 12,
-        TextWrapping = TextWrapping.Wrap
-    };
+        _completionWindow.CompletionList.Background = DarkBackground;
 
-    popupBorder.Child = popupText;
-    _descriptionPopup.Child = popupBorder;
+        _descriptionPopup = new System.Windows.Controls.Primitives.Popup
+        {
+            AllowsTransparency = true,
+            PlacementTarget = _completionWindow,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Right,
+            HorizontalOffset = 4,
+            VerticalOffset = 0,
+            StaysOpen = true
+        };
 
-    var listBox = _completionWindow.CompletionList.ListBox;
-    
-    _cachedListBoxStyle ??= (Style)System.Windows.Markup.XamlReader.Parse(AutoCompleteStyles.GetListBoxStyleXml());
-    _cachedItemContainerStyle ??= (Style)System.Windows.Markup.XamlReader.Parse(AutoCompleteStyles.GetItemStyleXml());
+        var popupBorder = new Border
+        {
+            Background = DarkBackground,
+            BorderBrush = DarkBorder,
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(10, 8, 10, 8),
+            CornerRadius = new CornerRadius(3),
+            MinWidth = 150,
+            MaxWidth = 600
+        };
 
-    listBox.Style = _cachedListBoxStyle;
-    listBox.ItemContainerStyle = _cachedItemContainerStyle;
+        var popupText = new TextBlock
+        {
+            Foreground = LightForeground,
+            FontFamily = new FontFamily("Consolas"),
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap
+        };
 
-    listBox.SelectionChanged += ListBox_SelectionChanged;
+        popupBorder.Child = popupText;
+        _descriptionPopup.Child = popupBorder;
 
-    var data = _completionWindow.CompletionList.CompletionData;
-    foreach (var item in itemList)
-    {
-        data.Add(item);
+        var listBox = _completionWindow.CompletionList.ListBox;
+
+        _cachedListBoxStyle ??= (Style)System.Windows.Markup.XamlReader.Parse(AutoCompleteStyles.GetListBoxStyleXml());
+        _cachedItemContainerStyle ??= (Style)System.Windows.Markup.XamlReader.Parse(AutoCompleteStyles.GetItemStyleXml());
+
+        listBox.Style = _cachedListBoxStyle;
+        listBox.ItemContainerStyle = _cachedItemContainerStyle;
+
+        listBox.SelectionChanged += ListBox_SelectionChanged;
+
+        var data = _completionWindow.CompletionList.CompletionData;
+        foreach (var item in itemList)
+        {
+            data.Add(item);
+        }
+
+        _completionWindow.Show();
+
+        string currentWord = _editor.Document.GetText(startOffset, endOffset - startOffset);
+        if (!string.IsNullOrEmpty(currentWord) && currentWord != ".")
+        {
+            _completionWindow.CompletionList.SelectItem(currentWord);
+        }
+
+        _editor.TextChanged += CodeEditor_TextChanged_ForCompletion;
+        _completionWindow.Closed += CompletionWindow_Closed;
     }
-
-    _completionWindow.Show();
-
-    string currentWord = _editor.Document.GetText(startOffset, endOffset - startOffset);
-    if (!string.IsNullOrEmpty(currentWord) && currentWord != ".")
-    {
-        _completionWindow.CompletionList.SelectItem(currentWord);
-    }
-
-    _editor.TextChanged += CodeEditor_TextChanged_ForCompletion;
-    _completionWindow.Closed += CompletionWindow_Closed;
-}
 
     private void ListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -644,16 +669,194 @@ public class AngelScriptAutocompleteManager : IDisposable
         }
     }
 
+    private void TriggerSignatureHelp(int caretOffset)
+    {
+        CloseSignatureHelp();
+
+        if (_remoteCompletions == null) return;
+
+        int start = caretOffset - 1;
+        while (start > 0 && char.IsWhiteSpace(_editor.Document.GetCharAt(start - 1)))
+        {
+            start--;
+        }
+
+        int end = start;
+        while (start > 0 && (char.IsLetterOrDigit(_editor.Document.GetCharAt(start - 1)) || _editor.Document.GetCharAt(start - 1) == '_'))
+        {
+            start--;
+        }
+
+        if (start == end) return;
+
+        string funcName = _editor.Document.GetText(start, end - start).Trim();
+        string? matchSignature = null;
+
+        if (_remoteCompletions.TryGetValue("Global", out var globals) && globals.TryGetValue(funcName, out var globalSig))
+        {
+            matchSignature = globalSig;
+        }
+        else
+        {
+            foreach (var kvp in _remoteCompletions)
+            {
+                if (kvp.Value.TryGetValue(funcName, out var classSig))
+                {
+                    matchSignature = classSig;
+                    break;
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(matchSignature)) return;
+
+        int openParen = matchSignature.IndexOf('(');
+        int closeParen = matchSignature.LastIndexOf(')');
+        if (openParen == -1 || closeParen == -1 || closeParen <= openParen) return;
+
+        _signatureStartOffset = caretOffset;
+        _signatureFunctionText = matchSignature;
+        _signaturePrefix = matchSignature.Substring(0, openParen + 1);
+
+        string paramContent = matchSignature.Substring(openParen + 1, closeParen - openParen - 1);
+        _signatureParameters = string.IsNullOrWhiteSpace(paramContent)
+            ? new List<string>()
+            : paramContent.Split(',').Select(p => p.Trim()).ToList();
+
+        InitSignaturePopup();
+        UpdateSignatureHighlight();
+    }
+
+    private void InitSignaturePopup()
+    {
+        _signatureTextBlock = new TextBlock
+        {
+            Foreground = LightForeground,
+            FontFamily = new FontFamily("Consolas"),
+            FontSize = 12,
+            TextWrapping = TextWrapping.NoWrap
+        };
+
+        var border = new Border
+        {
+            Background = DarkBackground,
+            BorderBrush = DarkBorder,
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(8, 4, 8, 4),
+            CornerRadius = new CornerRadius(2),
+            Child = _signatureTextBlock
+        };
+
+        _signaturePopup = new System.Windows.Controls.Primitives.Popup
+        {
+            AllowsTransparency = true,
+            PlacementTarget = _editor.TextArea,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Relative,
+            StaysOpen = true,
+            Child = border
+        };
+
+        var caretRect = _editor.TextArea.Caret.CalculateCaretRectangle();
+        _signaturePopup.HorizontalOffset = caretRect.Left;
+        _signaturePopup.VerticalOffset = caretRect.Bottom + 4;
+        _signaturePopup.IsOpen = true;
+    }
+
+    private void UpdateSignatureHighlight()
+    {
+        if (_signaturePopup == null || _signatureTextBlock == null || _signatureStartOffset == -1) return;
+
+        int currentOffset = _editor.CaretOffset;
+        if (currentOffset < _signatureStartOffset)
+        {
+            CloseSignatureHelp();
+            return;
+        }
+
+        string textSinceStart = _editor.Document.GetText(_signatureStartOffset, currentOffset - _signatureStartOffset);
+        int paramIndex = 0;
+        int parenDepth = 0;
+
+        foreach (char c in textSinceStart)
+        {
+            if (c == '(') parenDepth++;
+            else if (c == ')') parenDepth--;
+            else if (c == ',' && parenDepth == 0) paramIndex++;
+        }
+
+        if (parenDepth < 0)
+        {
+            CloseSignatureHelp();
+            return;
+        }
+
+        _signatureTextBlock.Inlines.Clear();
+        _signatureTextBlock.Inlines.Add(new Run(_signaturePrefix));
+
+        for (int i = 0; i < _signatureParameters.Count; i++)
+        {
+            if (i == paramIndex)
+            {
+                _signatureTextBlock.Inlines.Add(new Run(_signatureParameters[i])
+                {
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White
+                });
+            }
+            else
+            {
+                _signatureTextBlock.Inlines.Add(new Run(_signatureParameters[i]));
+            }
+
+            if (i < _signatureParameters.Count - 1)
+            {
+                _signatureTextBlock.Inlines.Add(new Run(", "));
+            }
+        }
+
+        _signatureTextBlock.Inlines.Add(new Run(")"));
+
+        var caretRect = _editor.TextArea.Caret.CalculateCaretRectangle();
+        _signaturePopup.HorizontalOffset = caretRect.Left;
+        _signaturePopup.VerticalOffset = caretRect.Bottom + 4;
+    }
+
+    private void Caret_PositionChanged(object? sender, EventArgs e)
+    {
+        if (_signaturePopup != null && _signaturePopup.IsOpen)
+        {
+            UpdateSignatureHighlight();
+        }
+    }
+
+    private void CloseSignatureHelp()
+    {
+        _signatureStartOffset = -1;
+        _signatureFunctionText = null;
+        _signatureParameters.Clear();
+        _signaturePrefix = string.Empty;
+
+        if (_signaturePopup != null)
+        {
+            _signaturePopup.IsOpen = false;
+            _signaturePopup = null;
+        }
+        _signatureTextBlock = null;
+    }
+
     public void ClearWindow()
     {
         _completionWindow?.Close();
+        CloseSignatureHelp();
     }
 
     public void Dispose()
     {
         _editor.TextArea.TextEntered -= TextArea_TextEntered;
         _editor.TextArea.TextEntering -= TextArea_TextEntering;
+        _editor.TextArea.Caret.PositionChanged -= Caret_PositionChanged;
         _editor.TextChanged -= CodeEditor_TextChanged_ForCompletion;
         _completionWindow?.Close();
+        CloseSignatureHelp();
     }
 }

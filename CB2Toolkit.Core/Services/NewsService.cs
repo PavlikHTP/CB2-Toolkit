@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using CB2Toolkit.Core.Models;
+using CB2Toolkit.Core.Models.Enums;
 using CB2Toolkit.Core.Models.Settings;
-using CB2Toolkit.Core.Models.Settings.Enums;
 
 namespace CB2Toolkit.Core.Services;
 

@@ -15,8 +15,8 @@ using CB2Toolkit.CodeEditor.Syntax;
 using CB2Toolkit.CodeEditor.Utils;
 using CB2Toolkit.Core;
 using CB2Toolkit.Core.Models;
+using CB2Toolkit.Core.Models.Enums;
 using CB2Toolkit.Core.Models.Settings;
-using CB2Toolkit.Core.Models.Settings.Enums;
 using CB2Toolkit.Core.Services;
 using CB2Toolkit.Core.Utilities;
 using ICSharpCode.AvalonEdit.CodeCompletion;
@@ -33,11 +33,13 @@ public partial class AngelScriptEditorView : UserControl
     private CompletionWindow? _completionWindow;
     private string? _currentFilePath;
     private bool _isUnsaved;
+
     private bool _isSuppressingTextEvents
     {
         get => _historyManager.IsSuspended;
         set => _historyManager.IsSuspended = value;
     }
+
     private Point _startPoint;
     private FileNode? _draggedNode;
     private bool _isWheelSaving;
@@ -46,7 +48,7 @@ public partial class AngelScriptEditorView : UserControl
     private readonly Stack<string> _forwardHistory = new();
     private bool _isNavigatingHistory;
     private readonly HashSet<string> _approvedWarningFiles = new(StringComparer.OrdinalIgnoreCase);
-    
+
     private FoldingManager? _foldingManager;
     private EditorHistoryManager _historyManager;
     private BraceFoldingStrategy? _foldingStrategy;
@@ -55,62 +57,64 @@ public partial class AngelScriptEditorView : UserControl
     private DispatcherTimer _validationTimer;
     private AngelScriptAutocompleteManager _autocompleteManager;
     private TerminalExecutionService _terminalService = new();
-    
-   public AngelScriptEditorView()
-{
-    InitializeComponent();
-    Loaded += async (s, e) =>
+
+    public AngelScriptEditorView()
     {
-        CodeEditor.FontSize = SettingsService.Instance.Current.EditorFontSize;
-        _autocompleteManager = new AngelScriptAutocompleteManager(CodeEditor);
-        
-        InitCodeFolding();
-        InitAdditionalFeatures();
-        ConfigureEditorSelection();
-
-        ProjectService.Instance.OnTreeStructureChanged += () => Dispatcher.Invoke(LoadProjectTree);
-        ProjectService.Instance.OnFileChangedExternally += path => Dispatcher.Invoke(() => OnFileChanged(path));
-        ProjectService.Instance.OnActiveFileDeletedExternally += path => Dispatcher.Invoke(() => OnFileDeleted(path));
-        ProjectService.Instance.OnActiveFileRenamedExternally += (oldPath, newPath) => Dispatcher.Invoke(() => OnFileRenamed(oldPath, newPath));
-        _terminalService.OutputReceived += text => Dispatcher.Invoke(() => LoggerService.Instance.Log(text, "#D4D4D4"));
-        _terminalService.ErrorReceived += text => Dispatcher.Invoke(() => LoggerService.Instance.Log(text, "#CD5C5C"));
-        LoggerService.Instance.OnLogAdded += entry => Dispatcher.Invoke(() => ConsoleOutput.Items.Add(entry));
-        LoggerService.Instance.OnLogCleared += () => Dispatcher.Invoke(() => ConsoleOutput.Items.Clear());
-        _historyManager = new EditorHistoryManager(CodeEditor);
-        var settings = SettingsService.Instance.Current;
-        CompilePathInput.Text = settings.CustomAngelScriptCompilePath ?? string.Empty;
-
-        if (settings.RecentAngelScriptFolders.Count > 0)
+        InitializeComponent();
+        Loaded += async (s, e) =>
         {
-            string lastFolderPath = settings.RecentAngelScriptFolders[0];
-            await OpenProject(lastFolderPath);
+            CodeEditor.FontSize = SettingsService.Instance.Current.EditorFontSize;
+            _autocompleteManager = new AngelScriptAutocompleteManager(CodeEditor);
 
-            if (!string.IsNullOrEmpty(settings.LastOpenedAngelScriptFilePath) && File.Exists(settings.LastOpenedAngelScriptFilePath))
+            InitCodeFolding();
+            InitAdditionalFeatures();
+            ConfigureEditorSelection();
+
+            ProjectService.Instance.OnTreeStructureChanged += () => Dispatcher.Invoke(LoadProjectTree);
+            ProjectService.Instance.OnFileChangedExternally += path => Dispatcher.Invoke(() => OnFileChanged(path));
+            ProjectService.Instance.OnActiveFileDeletedExternally +=
+                path => Dispatcher.Invoke(() => OnFileDeleted(path));
+            ProjectService.Instance.OnActiveFileRenamedExternally += (oldPath, newPath) =>
+                Dispatcher.Invoke(() => OnFileRenamed(oldPath, newPath));
+            _terminalService.OutputReceived +=
+                text => Dispatcher.Invoke(() => LoggerService.Instance.Log(text, "#D4D4D4"));
+            _terminalService.ErrorReceived +=
+                text => Dispatcher.Invoke(() => LoggerService.Instance.Log(text, "#CD5C5C"));
+            LoggerService.Instance.OnLogAdded += entry => Dispatcher.Invoke(() => ConsoleOutput.Items.Add(entry));
+            LoggerService.Instance.OnLogCleared += () => Dispatcher.Invoke(() => ConsoleOutput.Items.Clear());
+            _historyManager = new EditorHistoryManager(CodeEditor);
+            var settings = SettingsService.Instance.Current;
+            CompilePathInput.Text = settings.CustomAngelScriptCompilePath ?? string.Empty;
+
+            if (settings.RecentAngelScriptFolders.Count > 0)
             {
-                OpenFile(settings.LastOpenedAngelScriptFilePath);
+                string lastFolderPath = settings.RecentAngelScriptFolders[0];
+                await OpenProject(lastFolderPath);
+
+                if (!string.IsNullOrEmpty(settings.LastOpenedAngelScriptFilePath) &&
+                    File.Exists(settings.LastOpenedAngelScriptFilePath))
+                {
+                    OpenFile(settings.LastOpenedAngelScriptFilePath);
+                }
             }
-        }
 
-        _ = LoadAngelScriptHighlightingAsync();
-    };
+            _ = LoadAngelScriptHighlightingAsync();
+        };
 
-    Unloaded += (s, e) =>
-    {
-        SaveCurrentTreeState();
-    };
-    
-    CodeEditor.TextChanged += CodeEditor_TextChanged;
-    CodeEditor.PreviewMouseWheel += CodeEditor_PreviewMouseWheel;
-}
-   
+        Unloaded += (s, e) => { SaveCurrentTreeState(); };
+
+        CodeEditor.TextChanged += CodeEditor_TextChanged;
+        CodeEditor.PreviewMouseWheel += CodeEditor_PreviewMouseWheel;
+    }
+
     private void ConfigureEditorSelection()
     {
         CodeEditor.TextArea.SelectionForeground = null;
         CodeEditor.TextArea.SelectionBrush = new SolidColorBrush(Color.FromArgb(0x3D, 0x4D, 0x7C, 0xFE));
         CodeEditor.TextArea.SelectionBorder = null;
     }
-    
-    
+
+
     private void SaveCurrentTreeState()
     {
         var currentNodes = FileTree.Items.Cast<FileNode>().ToList();
@@ -128,7 +132,7 @@ public partial class AngelScriptEditorView : UserControl
         if (FileTree.SelectedItem is not FileNode node) return;
 
         HotkeySettings hotkeys = SettingsService.Instance.Current.Hotkeys;
-        
+
         if (HotkeyMatcher.IsMatch(e, hotkeys.RenameFile, hotkeys.RenameFileModifiers))
         {
             string? newName = ShowInputDialog("Rename", node.Key);
@@ -175,7 +179,7 @@ public partial class AngelScriptEditorView : UserControl
     {
         HotkeySettings hotkeys = SettingsService.Instance.Current.Hotkeys;
 
-        if (HotkeyMatcher.IsMatch(e, hotkeys.HideSearchPanelKey, hotkeys.HideSearchPanelModifiers) 
+        if (HotkeyMatcher.IsMatch(e, hotkeys.HideSearchPanelKey, hotkeys.HideSearchPanelModifiers)
             && SearchPanel.Visibility == Visibility.Visible)
         {
             HideSearchPanel();
@@ -242,6 +246,7 @@ public partial class AngelScriptEditorView : UserControl
             {
                 _historyManager.Redo();
             }
+
             e.Handled = true;
             return;
         }
@@ -640,111 +645,111 @@ public partial class AngelScriptEditorView : UserControl
     }
 
     private async Task ApplyFallbackHighlightingAsync()
-{
-    try
     {
-        string fallbackXshd = AngelScriptSyntax.GetFallbackXshd();
-        fallbackXshd = await EnhanceXshdWithRemoteClassesAsync(fallbackXshd);
-        using var reader = new XmlTextReader(new StringReader(fallbackXshd));
-        CodeEditor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
-    }
-    catch (Exception ex)
-    {
-        LoggerService.Instance.LogError($"[Editor Error] Failed to load local fallback: {ex.Message}");
-    }
-}
-
-private bool TryApplyHighlighting(string xshdContent)
-{
-    try
-    {
-        using var reader = new XmlTextReader(new StringReader(xshdContent));
-        CodeEditor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
-        return true;
-    }
-    catch
-    {
-        return false;
-    }
-}
-
-private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
-{
-    try
-    {
-        var settings = SettingsService.Instance.Current;
-        bool isGitHub = settings.FetchPriority == FetchPrioritySource.GitHub;
-        string primaryJsonUrl = isGitHub ? settings.CompletionGitHubUrl : settings.CompletionPastebinUrl;
-        string secondaryJsonUrl = isGitHub ? settings.CompletionPastebinUrl : settings.CompletionGitHubUrl;
-
-        string? json = await TryFetchStringAsync(primaryJsonUrl) ?? await TryFetchStringAsync(secondaryJsonUrl);
-        if (string.IsNullOrWhiteSpace(json)) return xshdCode;
-
-        var completions = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(json);
-        if (completions == null || completions.Count == 0) return xshdCode;
-
-        var doc = new XmlDocument();
-        doc.LoadXml(xshdCode);
-
-        var root = doc.DocumentElement;
-        if (root == null) return xshdCode;
-        string ns = root.NamespaceURI;
-
-        var firstRuleSet = doc.SelectSingleNode("//*[local-name()='RuleSet']");
-        if (firstRuleSet == null) return xshdCode;
-
-        var classes = completions.Keys.Where(k => k != "Global").ToList();
-        if (classes.Count > 0)
+        try
         {
-            var classColorNode = doc.CreateElement("Color", ns);
-            classColorNode.SetAttribute("name", "DynamicClasses");
-            classColorNode.SetAttribute("foreground", "#4EC9B0");
-            classColorNode.SetAttribute("fontWeight", "bold");
-            root.InsertBefore(classColorNode, firstRuleSet);
-
-            var classKeywordsNode = doc.CreateElement("Keywords", ns);
-            classKeywordsNode.SetAttribute("color", "DynamicClasses");
-            foreach (var cls in classes)
-            {
-                var wordNode = doc.CreateElement("Word", ns);
-                wordNode.InnerText = cls;
-                classKeywordsNode.AppendChild(wordNode);
-            }
-            firstRuleSet.AppendChild(classKeywordsNode);
+            string fallbackXshd = AngelScriptSyntax.GetFallbackXshd();
+            fallbackXshd = await EnhanceXshdWithRemoteClassesAsync(fallbackXshd);
+            using var reader = new XmlTextReader(new StringReader(fallbackXshd));
+            CodeEditor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
         }
-
-        if (completions.TryGetValue("Global", out var globals) && globals.Count > 0)
+        catch (Exception ex)
         {
-            var methodColorNode = doc.CreateElement("Color", ns);
-            methodColorNode.SetAttribute("name", "DynamicMethods");
-            methodColorNode.SetAttribute("foreground", "#DCDCAA");
-            root.InsertBefore(methodColorNode, firstRuleSet);
+            LoggerService.Instance.LogError($"[Editor Error] Failed to load local fallback: {ex.Message}");
+        }
+    }
 
-            var methodKeywordsNode = doc.CreateElement("Keywords", ns);
-            methodKeywordsNode.SetAttribute("color", "DynamicMethods");
-            foreach (var methodKey in globals.Keys)
+    private bool TryApplyHighlighting(string xshdContent)
+    {
+        try
+        {
+            using var reader = new XmlTextReader(new StringReader(xshdContent));
+            CodeEditor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
+    {
+        try
+        {
+            var settings = SettingsService.Instance.Current;
+
+            string? json = await TryFetchStringAsync(settings.CompletionGitHubUrl);
+            if (string.IsNullOrWhiteSpace(json)) return xshdCode;
+
+            var completions =
+                System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(json);
+            if (completions == null || completions.Count == 0) return xshdCode;
+
+            var doc = new XmlDocument();
+            doc.LoadXml(xshdCode);
+
+            var root = doc.DocumentElement;
+            if (root == null) return xshdCode;
+            string ns = root.NamespaceURI;
+
+            var firstRuleSet = doc.SelectSingleNode("//*[local-name()='RuleSet']");
+            if (firstRuleSet == null) return xshdCode;
+
+            var classes = completions.Keys.Where(k => k != "Global").ToList();
+            if (classes.Count > 0)
             {
-                string cleanMethodName = methodKey.Split('(')[0].Trim();
-                if (!string.IsNullOrEmpty(cleanMethodName))
+                var classColorNode = doc.CreateElement("Color", ns);
+                classColorNode.SetAttribute("name", "DynamicClasses");
+                classColorNode.SetAttribute("foreground", "#4EC9B0");
+                classColorNode.SetAttribute("fontWeight", "bold");
+                root.InsertBefore(classColorNode, firstRuleSet);
+
+                var classKeywordsNode = doc.CreateElement("Keywords", ns);
+                classKeywordsNode.SetAttribute("color", "DynamicClasses");
+                foreach (var cls in classes)
                 {
                     var wordNode = doc.CreateElement("Word", ns);
-                    wordNode.InnerText = cleanMethodName;
-                    methodKeywordsNode.AppendChild(wordNode);
+                    wordNode.InnerText = cls;
+                    classKeywordsNode.AppendChild(wordNode);
                 }
-            }
-            firstRuleSet.AppendChild(methodKeywordsNode);
-        }
 
-        using var sw = new StringWriter();
-        using var xw = XmlWriter.Create(sw);
-        doc.Save(xw);
-        return sw.ToString();
+                firstRuleSet.AppendChild(classKeywordsNode);
+            }
+
+            if (completions.TryGetValue("Global", out var globals) && globals.Count > 0)
+            {
+                var methodColorNode = doc.CreateElement("Color", ns);
+                methodColorNode.SetAttribute("name", "DynamicMethods");
+                methodColorNode.SetAttribute("foreground", "#DCDCAA");
+                root.InsertBefore(methodColorNode, firstRuleSet);
+
+                var methodKeywordsNode = doc.CreateElement("Keywords", ns);
+                methodKeywordsNode.SetAttribute("color", "DynamicMethods");
+                foreach (var methodKey in globals.Keys)
+                {
+                    string cleanMethodName = methodKey.Split('(')[0].Trim();
+                    if (!string.IsNullOrEmpty(cleanMethodName))
+                    {
+                        var wordNode = doc.CreateElement("Word", ns);
+                        wordNode.InnerText = cleanMethodName;
+                        methodKeywordsNode.AppendChild(wordNode);
+                    }
+                }
+
+                firstRuleSet.AppendChild(methodKeywordsNode);
+            }
+
+            using var sw = new StringWriter();
+            using var xw = XmlWriter.Create(sw);
+            doc.Save(xw);
+            return sw.ToString();
+        }
+        catch
+        {
+            return xshdCode;
+        }
     }
-    catch
-    {
-        return xshdCode;
-    }
-}
 
     private async Task<string?> TryFetchStringAsync(string url)
     {
@@ -759,7 +764,7 @@ private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
             return null;
         }
     }
-    
+
     private void ApplyFallbackHighlighting()
     {
         try
@@ -831,12 +836,12 @@ private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
                 ? "output"
                 : Path.GetFileNameWithoutExtension(input.Trim());
 
-            string? compilePath = !string.IsNullOrWhiteSpace(CompilePathInput.Text) 
-                ? CompilePathInput.Text 
+            string? compilePath = !string.IsNullOrWhiteSpace(CompilePathInput.Text)
+                ? CompilePathInput.Text
                 : _currentFilePath;
 
             string? codeToSend = null;
-            if (string.IsNullOrWhiteSpace(CompilePathInput.Text) || 
+            if (string.IsNullOrWhiteSpace(CompilePathInput.Text) ||
                 string.Equals(CompilePathInput.Text, _currentFilePath, StringComparison.OrdinalIgnoreCase))
             {
                 codeToSend = CodeEditor.Text;
@@ -859,7 +864,7 @@ private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
             LoggerService.Instance.LogError($"Critical UI Error: {ex.Message}");
         }
     }
-    
+
     private void AutoscrollToggle_Checked(object sender, RoutedEventArgs e)
     {
         ScrollConsoleToBottom();
@@ -955,8 +960,8 @@ private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
         if (!string.IsNullOrEmpty(_currentFilePath) &&
             _currentFilePath.Equals(fullPath, StringComparison.OrdinalIgnoreCase))
         {
-            _autocompleteManager?.ClearWindow(); 
-        
+            _autocompleteManager?.ClearWindow();
+
             TempFileService.Instance.ClearTemp(_currentFilePath);
             _currentFilePath = null;
             _isUnsaved = false;
@@ -1111,7 +1116,7 @@ private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
             if (AutoscrollToggle.IsChecked == true) ScrollConsoleToBottom();
         }
     }
-    
+
 
     private void CodeEditor_TextChanged(object sender, EventArgs e)
     {
@@ -1143,7 +1148,7 @@ private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
 
         _autocompleteManager?.ClearWindow();
-        
+
         if (!_isNavigatingHistory && !string.IsNullOrEmpty(_currentFilePath) && _currentFilePath != filePath)
         {
             _backHistory.Push(_currentFilePath);
@@ -1218,7 +1223,7 @@ private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
         if (string.IsNullOrEmpty(_currentFilePath) || FileTree.Items.Count == 0) return;
 
         string targetPath = Path.GetFullPath(_currentFilePath);
-        
+
         foreach (var item in FileTree.Items)
         {
             if (item is FileNode rootNode)
@@ -1226,13 +1231,13 @@ private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
                 var foundNode = FindFileNode(rootNode, targetPath);
                 if (foundNode != null)
                 {
-                    foundNode.IsUnsaved = unsaved; 
+                    foundNode.IsUnsaved = unsaved;
                     break;
                 }
             }
         }
     }
-    
+
     private FileNode? FindFileNode(FileNode node, string targetPath)
     {
         if (!node.IsDirectory && !string.IsNullOrEmpty(node.FullPath))
@@ -1319,7 +1324,7 @@ private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
     {
         FileNode? node = GetNodeFromMenu(sender);
         if (node == null) return;
-        
+
         string? newName = ShowInputDialog("Rename", node.Key);
         if (string.IsNullOrEmpty(newName) || newName == node.Key) return;
 
@@ -1351,7 +1356,7 @@ private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
     {
         FileNode? node = GetNodeFromMenu(sender);
         if (node == null || string.IsNullOrEmpty(node.FullPath)) return;
-        
+
         try
         {
             Clipboard.SetText(node.FullPath);
@@ -1397,7 +1402,7 @@ private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
     {
         FileNode? node = GetNodeFromMenu(sender);
         if (node == null) return;
-        
+
         var result = ModernMessageBox.Show(
             Window.GetWindow(this),
             $"Delete {node.Key}?",
@@ -1447,12 +1452,13 @@ private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
         }
     }
 
-    private void FileTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _startPoint = e.GetPosition(null);
-    
+    private void FileTree_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) =>
+        _startPoint = e.GetPosition(null);
+
     private void FileTree_MouseMove(object sender, MouseEventArgs e)
     {
         if (e.LeftButton != MouseButtonState.Pressed) return;
-        
+
         Point mousePos = e.GetPosition(null);
         Vector diff = _startPoint - mousePos;
 
@@ -1523,10 +1529,12 @@ private async Task<string> EnhanceXshdWithRemoteClassesAsync(string xshdCode)
 
     private FileNode? GetNodeFromMenu(object sender)
     {
-        if (sender is MenuItem menuItem && menuItem.Parent is ContextMenu contextMenu && contextMenu.PlacementTarget is FrameworkElement element)
+        if (sender is MenuItem menuItem && menuItem.Parent is ContextMenu contextMenu &&
+            contextMenu.PlacementTarget is FrameworkElement element)
         {
             return element is TreeViewItem tvi ? tvi.DataContext as FileNode : element.DataContext as FileNode;
         }
+
         return FileTree.SelectedItem as FileNode;
     }
 

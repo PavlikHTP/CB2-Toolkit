@@ -35,6 +35,7 @@
       <ProjectReference Include="..\CB2Toolkit.AddonEditor\CB2Toolkit.AddonEditor.csproj" />
       <ProjectReference Include="..\CB2Toolkit.CodeEditor\CB2Toolkit.CodeEditor.csproj" />
       <ProjectReference Include="..\CB2Toolkit.Core\CB2Toolkit.Core.csproj" />
+      <ProjectReference Include="..\CB2Toolkit.UIEditor\CB2Toolkit.UIEditor.csproj" />
     </ItemGroup>
 
     <ItemGroup>
