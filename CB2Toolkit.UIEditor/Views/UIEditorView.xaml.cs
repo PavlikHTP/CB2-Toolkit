@@ -10,7 +10,6 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
-using System.Collections.Generic;
 using CB2Toolkit.CodeEditor.Utils;
 using CB2Toolkit.Core.Models;
 using CB2Toolkit.Core.Models.Enums;

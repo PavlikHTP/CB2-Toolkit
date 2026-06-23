@@ -12,7 +12,6 @@ using ICSharpCode.AvalonEdit.CodeCompletion;
 using CB2Toolkit.CodeEditor.Models.Enums;
 using CB2Toolkit.CodeEditor.Syntax;
 using CB2Toolkit.CodeEditor.Themes;
-using CB2Toolkit.Core.Models.Enums;
 using CB2Toolkit.Core.Services;
 using CB2Toolkit.Core.Utilities;
 
@@ -25,7 +24,7 @@ public class AngelScriptAutocompleteManager : IDisposable
     private static readonly Regex FunctionRegex = new(@"\b[A-Za-z_]\w*(?=\s*\()", RegexOptions.Compiled);
     private static readonly Regex ClassDeclarationRegex = new(@"(?<=\b(class|interface|enum)\s+)[A-Za-z_]\w*", RegexOptions.Compiled);
     private static readonly Regex WordBoundaryRegex = new(@"\b[A-Za-z_]\w*\b", RegexOptions.Compiled);
-    private static readonly Regex ClassFieldRegex = new(@"\b([A-Za-z_]\w*)\s+([A-Za-z_]\w*)\s*;", RegexOptions.Compiled);
+    private static readonly Regex ClassFieldRegex = new(@"\b([A-Za-z_]\w*)\s+([^;]+);", RegexOptions.Compiled);
     private static readonly Regex CleanTextRegex = new(@"(//[^\r\n]*)|(/\*[\s\S]*?\*/)|(""(?:\\.|[^""\\])*"")|('(?:\\.|[^'\\])*')", RegexOptions.Compiled);
 
     private static readonly SolidColorBrush DarkBackground = new((Color)ColorConverter.ConvertFromString("#1E1E1E"));
@@ -385,132 +384,152 @@ public class AngelScriptAutocompleteManager : IDisposable
     }
 
     private void ShowMethodsForContext(int dotOffset, string filterWord)
+{
+    if (dotOffset < 1) return;
+
+    int start = dotOffset;
+    while (start > 0 && (char.IsLetterOrDigit(_editor.Document.GetCharAt(start - 1)) || _editor.Document.GetCharAt(start - 1) == '_'))
     {
-        if (dotOffset < 1) return;
+        start--;
+    }
 
-        int start = dotOffset;
-        while (start > 0 && (char.IsLetterOrDigit(_editor.Document.GetCharAt(start - 1)) || _editor.Document.GetCharAt(start - 1) == '_'))
+    if (start == dotOffset) return;
+
+    string varName = _editor.Document.GetText(start, dotOffset - start).Trim();
+    var members = new List<AngelScriptCompletionData>();
+    string lookupType = varName;
+
+    if (_remoteCompletions != null && _remoteCompletions.ContainsKey(varName))
+    {
+        lookupType = varName;
+    }
+    else
+    {
+        int scanStart = Math.Max(0, start - 15000);
+        string textBeforeCaret = _editor.Document.GetText(scanStart, start - scanStart);
+        string textAfterCaret = _editor.Document.GetText(start, Math.Min(15000, _editor.Document.TextLength - start));
+        string? typeName = ResolveVariableType(varName, textBeforeCaret, textAfterCaret);
+
+        if (!string.IsNullOrEmpty(typeName))
         {
-            start--;
-        }
-
-        if (start == dotOffset) return;
-
-        string varName = _editor.Document.GetText(start, dotOffset - start).Trim();
-        var methods = new List<AngelScriptCompletionData>();
-        string lookupType = varName;
-
-        if (_remoteCompletions != null && _remoteCompletions.ContainsKey(varName))
-        {
-            lookupType = varName;
-        }
-        else
-        {
-            int scanStart = Math.Max(0, start - 15000);
-            string textBeforeCaret = _editor.Document.GetText(scanStart, start - scanStart);
-            string? typeName = ResolveVariableType(varName, textBeforeCaret);
-
-            if (!string.IsNullOrEmpty(typeName))
-            {
-                methods.AddRange(GetClassMembers(typeName));
-                lookupType = typeName;
-            }
-        }
-
-        if (_remoteCompletions != null && _remoteCompletions.TryGetValue(lookupType, out var remoteMethods))
-        {
-            foreach (var kvp in remoteMethods)
-            {
-                if (!methods.Any(m => m.Text == kvp.Key))
-                {
-                    methods.Add(new AngelScriptCompletionData(kvp.Key, CompletionType.Function) { Description = kvp.Value });
-                }
-            }
-        }
-        else if (_remoteCompletions == null)
-        {
-            LoggerService.Instance.LogError("[Autocomplete Fail] _remoteCompletions is NULL. JSON database was not loaded.");
-        }
-
-        if (methods.Count > 0)
-        {
-            _currentContextMethods = methods;
-
-            var finalItems = string.IsNullOrEmpty(filterWord)
-                ? methods
-                : methods.Where(m => m.Text.StartsWith(filterWord, StringComparison.OrdinalIgnoreCase)).ToList();
-
-            if (finalItems.Count > 0)
-            {
-                OpenCompletionWindow(dotOffset + 1, _editor.CaretOffset, finalItems);
-            }
+            members.AddRange(GetClassMembers(typeName));
+            lookupType = typeName;
         }
     }
 
-    private string? ResolveVariableType(string varName, string textBeforeCaret)
+    if (_remoteCompletions != null && _remoteCompletions.TryGetValue(lookupType, out var remoteMethods))
+    {
+        foreach (var kvp in remoteMethods)
+        {
+            if (!members.Any(m => m.Text == kvp.Key))
+            {
+                members.Add(new AngelScriptCompletionData(kvp.Key, CompletionType.Function) { Description = kvp.Value });
+            }
+        }
+    }
+    else if (_remoteCompletions == null)
+    {
+        LoggerService.Instance.LogError("[Autocomplete Fail] _remoteCompletions is NULL. JSON database was not loaded.");
+    }
+
+    if (members.Count > 0)
+    {
+        _currentContextMethods = members;
+
+        var finalItems = string.IsNullOrEmpty(filterWord)
+            ? members
+            : members.Where(m => m.Text.StartsWith(filterWord, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (finalItems.Count > 0)
+        {
+            OpenCompletionWindow(dotOffset + 1, _editor.CaretOffset, finalItems);
+        }
+    }
+}
+
+    private string? ResolveVariableType(string varName, string textBeforeCaret, string textAfterCaret)
     {
         string pattern = @"\b([A-Za-z_]\w*)\s*@?\s*" + Regex.Escape(varName) + @"\b";
-        var matches = Regex.Matches(textBeforeCaret, pattern);
+        string[] primitives = { "if", "for", "while", "return", "new", "void", "int", "float", "double", "bool", "uint", "string" };
 
-        if (matches.Count > 0)
+        var matchesBefore = Regex.Matches(textBeforeCaret, pattern);
+        if (matchesBefore.Count > 0)
         {
-            string typeName = matches[^1].Groups[1].Value;
-            string[] primitives = { "if", "for", "while", "return", "new", "void", "int", "float", "double", "bool", "uint", "string" };
-
-            if (primitives.Contains(typeName)) return null;
-            return typeName;
+            string typeName = matchesBefore[^1].Groups[1].Value;
+            if (!primitives.Contains(typeName)) return typeName;
         }
+
+        var matchesAfter = Regex.Matches(textAfterCaret, pattern);
+        if (matchesAfter.Count > 0)
+        {
+            string typeName = matchesAfter[0].Groups[1].Value;
+            if (!primitives.Contains(typeName)) return typeName;
+        }
+
         return null;
     }
 
     private List<AngelScriptCompletionData> GetClassMembers(string typeName)
+{
+    var members = new List<AngelScriptCompletionData>();
+    string fullText = _editor.Text;
+
+    string classPattern = @"\bclass\s+" + Regex.Escape(typeName) + @"\s*\{";
+    var match = Regex.Match(fullText, classPattern);
+    if (!match.Success) return members;
+
+    int startPos = match.Index + match.Length;
+    int braceCount = 1;
+    int endPos = startPos;
+
+    while (endPos < fullText.Length && braceCount > 0)
     {
-        var members = new List<AngelScriptCompletionData>();
-        string fullText = _editor.Text;
-
-        string classPattern = @"\bclass\s+" + Regex.Escape(typeName) + @"\s*\{";
-        var match = Regex.Match(fullText, classPattern);
-        if (!match.Success) return members;
-
-        int startPos = match.Index + match.Length;
-        int braceCount = 1;
-        int endPos = startPos;
-
-        while (endPos < fullText.Length && braceCount > 0)
-        {
-            if (fullText[endPos] == '{') braceCount++;
-            else if (fullText[endPos] == '}') braceCount--;
-            endPos++;
-        }
-
-        if (braceCount > 0) return members;
-
-        string classBody = fullText.Substring(startPos, endPos - startPos - 1);
-        string cleanClassBody = CleanTextRegex.Replace(classBody, " ");
-
-        foreach (Match m in FunctionRegex.Matches(cleanClassBody))
-        {
-            string methodName = m.Value;
-            if (methodName == "if" || methodName == "while" || methodName == "for" || methodName == "switch") continue;
-
-            if (!members.Any(x => x.Text.StartsWith(methodName)))
-            {
-                members.Add(new AngelScriptCompletionData(methodName, CompletionType.Function));
-            }
-        }
-
-        var fieldMatches = ClassFieldRegex.Matches(cleanClassBody);
-        foreach (Match m in fieldMatches)
-        {
-            string fieldName = m.Groups[2].Value;
-            if (!members.Any(x => x.Text == fieldName))
-            {
-                members.Add(new AngelScriptCompletionData(fieldName, CompletionType.Field));
-            }
-        }
-
-        return members;
+        if (fullText[endPos] == '{') braceCount++;
+        else if (fullText[endPos] == '}') braceCount--;
+        endPos++;
     }
+
+    if (braceCount > 0) return members;
+
+    string classBody = fullText.Substring(startPos, endPos - startPos - 1);
+    string cleanClassBody = CleanTextRegex.Replace(classBody, " ");
+
+    foreach (Match m in FunctionRegex.Matches(cleanClassBody))
+    {
+        string methodName = m.Value;
+        if (methodName == "if" || methodName == "while" || methodName == "for" || methodName == "switch") continue;
+
+        if (!members.Any(x => x.Text.StartsWith(methodName)))
+        {
+            members.Add(new AngelScriptCompletionData(methodName, CompletionType.Function));
+        }
+    }
+
+    var fieldMatches = ClassFieldRegex.Matches(cleanClassBody);
+    foreach (Match m in fieldMatches)
+    {
+        string typeStr = m.Groups[1].Value;
+        string[] primitives = { "if", "for", "while", "return", "new", "void", "switch", "case" };
+        if (primitives.Contains(typeStr)) continue;
+
+        string fieldsPart = m.Groups[2].Value;
+        string[] parts = fieldsPart.Split(',');
+        foreach (var part in parts)
+        {
+            var nameMatch = Regex.Match(part, @"\b[A-Za-z_]\w*\b");
+            if (nameMatch.Success)
+            {
+                string fieldName = nameMatch.Value;
+                if (!members.Any(x => x.Text == fieldName))
+                {
+                    members.Add(new AngelScriptCompletionData(fieldName, CompletionType.Field));
+                }
+            }
+        }
+    }
+
+    return members;
+}
 
     private void OpenCompletionWindow(int startOffset, int endOffset, IEnumerable<AngelScriptCompletionData> items)
     {
@@ -605,13 +624,7 @@ public class AngelScriptAutocompleteManager : IDisposable
     private void ListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_completionWindow == null || _descriptionPopup == null) return;
-
-        foreach (Window w in _completionWindow.OwnedWindows)
-        {
-            w.Visibility = Visibility.Collapsed;
-            w.Width = 0;
-            w.Height = 0;
-        }
+        
 
         if (sender is ListBox listBox && listBox.SelectedItem is AngelScriptCompletionData selectedItem)
         {
