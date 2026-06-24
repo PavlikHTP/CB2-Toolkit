@@ -578,8 +578,8 @@ public partial class UIEditorView : UserControl
     private void ScrollConsoleToBottom()
     {
         if (ConsoleScrollViewer == null) return;
-        ConsoleScrollViewer.Dispatcher.BeginInvoke(DispatcherPriority.Background,
-            new Action(() => { ConsoleScrollViewer.ScrollToEnd(); }));
+        ConsoleScrollViewer.Dispatcher.InvokeAsync(
+            () => { ConsoleScrollViewer.ScrollToEnd(); }, DispatcherPriority.Background);
     }
 
     private async void TerminalInput_KeyDown(object sender, KeyEventArgs e)

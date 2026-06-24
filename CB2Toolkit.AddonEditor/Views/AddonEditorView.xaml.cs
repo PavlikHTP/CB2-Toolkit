@@ -548,8 +548,8 @@ public partial class AddonEditorView : UserControl
     {
         if (ConsoleScrollViewer == null) return;
 
-        ConsoleScrollViewer.Dispatcher.BeginInvoke(DispatcherPriority.Background,
-            new Action(() => { ConsoleScrollViewer.ScrollToEnd(); }));
+        ConsoleScrollViewer.Dispatcher.InvokeAsync(
+            () => { ConsoleScrollViewer.ScrollToEnd(); }, DispatcherPriority.Background);
     }
 
     private void TerminalInput_KeyDown(object sender, KeyEventArgs e)

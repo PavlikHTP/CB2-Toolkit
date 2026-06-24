@@ -7,16 +7,16 @@
              d:DesignHeight="950" d:DesignWidth="670">
 
     <UserControl.InputBindings>
-        <KeyBinding Modifiers="Control" Key="S" Command="ApplicationCommands.Save"/>
+        <KeyBinding Modifiers="Control" Key="S" Command="ApplicationCommands.Save" />
     </UserControl.InputBindings>
 
     <UserControl.CommandBindings>
-        <CommandBinding Command="ApplicationCommands.Save" Executed="SaveSettings_Executed"/>
+        <CommandBinding Command="ApplicationCommands.Save" Executed="SaveSettings_Executed" />
     </UserControl.CommandBindings>
 
     <UserControl.Resources>
         <Style TargetType="ScrollBar">
-            <Setter Property="Background" Value="#121214"/>
+            <Setter Property="Background" Value="#121214" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ScrollBar">
@@ -26,7 +26,7 @@
                                     <Thumb>
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="Thumb">
-                                                <Border Background="#3F3F46" CornerRadius="4" Margin="2"/>
+                                                <Border Background="#3F3F46" CornerRadius="4" Margin="2" />
                                             </ControlTemplate>
                                         </Thumb.Template>
                                     </Thumb>
@@ -38,8 +38,8 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="Orientation" Value="Horizontal">
-                    <Setter Property="Height" Value="14"/>
-                    <Setter Property="Width" Value="Auto"/>
+                    <Setter Property="Height" Value="14" />
+                    <Setter Property="Width" Value="Auto" />
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="ScrollBar">
@@ -49,7 +49,7 @@
                                             <Thumb>
                                                 <Thumb.Template>
                                                     <ControlTemplate TargetType="Thumb">
-                                                        <Border Background="#3F3F46" CornerRadius="4" Margin="2"/>
+                                                        <Border Background="#3F3F46" CornerRadius="4" Margin="2" />
                                                     </ControlTemplate>
                                                 </Thumb.Template>
                                             </Thumb>
@@ -61,59 +61,61 @@
                     </Setter>
                 </Trigger>
                 <Trigger Property="Orientation" Value="Vertical">
-                    <Setter Property="Width" Value="14"/>
-                    <Setter Property="Height" Value="Auto"/>
+                    <Setter Property="Width" Value="14" />
+                    <Setter Property="Height" Value="Auto" />
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <Style x:Key="ToolbarButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#232329"/>
-            <Setter Property="Foreground" Value="#F3F4F6"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="14,8"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Background" Value="#232329" />
+            <Setter Property="Foreground" Value="#F3F4F6" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border Background="{TemplateBinding Background}" CornerRadius="5"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#2D2D35"/>
+                    <Setter Property="Background" Value="#2D2D35" />
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <Style TargetType="ComboBoxItem">
-            <Setter Property="Background" Value="#1E1E22"/>
-            <Setter Property="Foreground" Value="#F3F4F6"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Background" Value="#1E1E22" />
+            <Setter Property="Foreground" Value="#F3F4F6" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBoxItem">
                         <Grid>
-                            <Border x:Name="ItemBorder" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="3" Margin="2,1">
-                                <ContentPresenter VerticalAlignment="Center"/>
+                            <Border x:Name="ItemBorder" Background="{TemplateBinding Background}"
+                                    Padding="{TemplateBinding Padding}" CornerRadius="3" Margin="2,1">
+                                <ContentPresenter VerticalAlignment="Center" />
                             </Border>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#2B2B30"/>
-                                <Setter Property="Foreground" Value="White"/>
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#2B2B30" />
+                                <Setter Property="Foreground" Value="White" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#4D7CFE"/>
-                                <Setter Property="Foreground" Value="White"/>
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#4D7CFE" />
+                                <Setter Property="Foreground" Value="White" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -122,52 +124,62 @@
         </Style>
 
         <Style x:Key="ModernComboBox" TargetType="ComboBox">
-            <Setter Property="Background" Value="#1E1E22"/>
-            <Setter Property="Foreground" Value="#F3F4F6"/>
-            <Setter Property="BorderBrush" Value="#2B2B30"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
-            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
-            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Background" Value="#1E1E22" />
+            <Setter Property="Foreground" Value="#F3F4F6" />
+            <Setter Property="BorderBrush" Value="#2B2B30" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="Padding" Value="12,0" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBox">
                         <Grid>
-                            <ToggleButton Name="ToggleButton" 
-                                          BorderBrush="{TemplateBinding BorderBrush}" 
-                                          BorderThickness="{TemplateBinding BorderThickness}" 
-                                          Background="{TemplateBinding Background}" 
+                            <ToggleButton Name="ToggleButton"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          Background="{TemplateBinding Background}"
                                           Focusable="False"
                                           IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
                                 <ToggleButton.Template>
                                     <ControlTemplate TargetType="ToggleButton">
-                                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="5">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="5">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="32"/>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="32" />
                                                 </Grid.ColumnDefinitions>
-                                                <Path Grid.Column="1" Data="M 0 0 L 4 4 L 8 0 Z" Fill="#9CA3AF" HorizontalAlignment="Center" VerticalAlignment="Center" SnapsToDevicePixels="True"/>
+                                                <Path Grid.Column="1" Data="M 0 0 L 4 4 L 8 0 Z" Fill="#9CA3AF"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                      SnapsToDevicePixels="True" />
                                             </Grid>
                                         </Border>
                                     </ControlTemplate>
                                 </ToggleButton.Template>
                             </ToggleButton>
-                            <ContentPresenter Name="ContentSite" IsHitTestVisible="False" 
+                            <ContentPresenter Name="ContentSite" IsHitTestVisible="False"
                                               Content="{TemplateBinding SelectionBoxItem}"
-                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" 
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                               ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
                                               Margin="12,0,32,0" VerticalAlignment="Center" HorizontalAlignment="Left" />
-                            <Popup Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
-                                <Grid Name="DropDown" SnapsToDevicePixels="True" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
-                                    <Border x:Name="DropDownBorder" Background="#16161A" BorderBrush="#2B2B30" BorderThickness="1" CornerRadius="5" Margin="0,4,0,0">
+                            <Popup Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Grid Name="DropDown" SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}"
+                                      MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border x:Name="DropDownBorder" Background="#16161A" BorderBrush="#2B2B30"
+                                            BorderThickness="1" CornerRadius="5" Margin="0,4,0,0">
                                         <Border.Effect>
-                                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.3"/>
+                                            <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.3" />
                                         </Border.Effect>
                                     </Border>
-                                    <ScrollViewer Margin="2,6,2,2" SnapsToDevicePixels="True" VerticalScrollBarVisibility="Auto">
-                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    <ScrollViewer Margin="2,6,2,2" SnapsToDevicePixels="True"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <StackPanel IsItemsHost="True"
+                                                    KeyboardNavigation.DirectionalNavigation="Contained" />
                                     </ScrollViewer>
                                 </Grid>
                             </Popup>
@@ -178,21 +190,21 @@
         </Style>
 
         <Style x:Key="ModernTextBox" TargetType="TextBox">
-            <Setter Property="Background" Value="#1E1E22"/>
-            <Setter Property="Foreground" Value="#F3F4F6"/>
-            <Setter Property="BorderBrush" Value="#2B2B30"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Background" Value="#1E1E22" />
+            <Setter Property="Foreground" Value="#F3F4F6" />
+            <Setter Property="BorderBrush" Value="#2B2B30" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
-                        <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}" 
-                                BorderThickness="{TemplateBinding BorderThickness}" 
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="5">
-                            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" />
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
@@ -200,89 +212,92 @@
         </Style>
 
         <Style x:Key="HotkeyButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#1E1E22"/>
-            <Setter Property="Foreground" Value="#F3F4F6"/>
-            <Setter Property="BorderBrush" Value="#2B2B30"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontFamily" Value="Consolas"/>
-            <Setter Property="HorizontalAlignment" Value="Right"/>
-            <Setter Property="Width" Value="220"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Background" Value="#1E1E22" />
+            <Setter Property="Foreground" Value="#F3F4F6" />
+            <Setter Property="BorderBrush" Value="#2B2B30" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="Width" Value="220" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="BtnBorder" Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}" 
-                                BorderThickness="{TemplateBinding BorderThickness}" 
-                                CornerRadius="4" 
+                        <Border x:Name="BtnBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
                                 Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="BorderBrush" Value="#4D7CFE"/>
+                    <Setter Property="BorderBrush" Value="#4D7CFE" />
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <Style x:Key="ActionButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#4D7CFE"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Padding" Value="20,10"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Background" Value="#4D7CFE" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="20,10" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border Background="{TemplateBinding Background}" CornerRadius="5"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#3B66E0"/>
+                    <Setter Property="Background" Value="#3B66E0" />
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <Style x:Key="SecondaryButtonStyle" BasedOn="{StaticResource ActionButtonStyle}" TargetType="Button">
-            <Setter Property="Background" Value="#2B2B30"/>
-            <Setter Property="Foreground" Value="#9CA3AF"/>
+            <Setter Property="Background" Value="#2B2B30" />
+            <Setter Property="Foreground" Value="#9CA3AF" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#35353B"/>
-                    <Setter Property="Foreground" Value="#F3F4F6"/>
+                    <Setter Property="Background" Value="#35353B" />
+                    <Setter Property="Foreground" Value="#F3F4F6" />
                 </Trigger>
             </Style.Triggers>
         </Style>
 
         <Style x:Key="ModernSlider" TargetType="Slider">
-            <Setter Property="Background" Value="#1E1E22"/>
-            <Setter Property="Maximum" Value="36"/>
-            <Setter Property="Minimum" Value="10"/>
-            <Setter Property="TickFrequency" Value="1"/>
-            <Setter Property="IsSnapToTickEnabled" Value="True"/>
+            <Setter Property="Background" Value="#1E1E22" />
+            <Setter Property="Maximum" Value="36" />
+            <Setter Property="Minimum" Value="10" />
+            <Setter Property="TickFrequency" Value="1" />
+            <Setter Property="IsSnapToTickEnabled" Value="True" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
                         <Grid FocusVisualStyle="{x:Null}">
-                            <Border Background="{TemplateBinding Background}" Height="6" CornerRadius="3" VerticalAlignment="Center"/>
+                            <Border Background="{TemplateBinding Background}" Height="6" CornerRadius="3"
+                                    VerticalAlignment="Center" />
                             <Track x:Name="PART_Track">
                                 <Track.Thumb>
                                     <Thumb Width="18" Height="18" Cursor="Hand">
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="Thumb">
-                                                <Border Background="#4D7CFE" CornerRadius="9" BorderBrush="#121214" BorderThickness="2"/>
+                                                <Border Background="#4D7CFE" CornerRadius="9" BorderBrush="#121214"
+                                                        BorderThickness="2" />
                                             </ControlTemplate>
                                         </Thumb.Template>
                                     </Thumb>
@@ -297,202 +312,283 @@
 
     <Grid Background="#121214" Margin="40,30">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Margin="0,0,0,30">
-            <Button Content="&lt;─ Back to Hub" 
+            <Button Content="&lt;─ Back to Hub"
                     Style="{StaticResource ToolbarButtonStyle}"
                     HorizontalAlignment="Left"
-                    Click="BackToMenu_Click" 
+                    Click="BackToMenu_Click"
                     Margin="0,0,0,20"
-                    Cursor="Hand"/>
-            
-            <TextBlock Text="GLOBAL TOOLKIT CONFIGURATION" FontSize="11" FontWeight="Bold" Foreground="#4B5563"/>
-            <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,0"/>
+                    Cursor="Hand" />
+
+            <TextBlock Text="GLOBAL TOOLKIT CONFIGURATION" FontSize="11" FontWeight="Bold" Foreground="#4B5563" />
+            <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,0" />
         </StackPanel>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="0,0,10,0">
-                
-                <TextBlock Text="NETWORK SETTINGS" FontSize="12" FontWeight="Bold" Foreground="#4D7CFE" Margin="0,0,0,16"/>
 
-                <TextBlock Text="Network Fetch Priority" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <ComboBox x:Name="PriorityComboBox" SelectedValuePath="Tag" Style="{StaticResource ModernComboBox}" Height="38" Width="200" HorizontalAlignment="Left" Margin="0,0,0,24">
-                    <ComboBoxItem Content="GitHub" Tag="GitHub"/>
-                    <ComboBoxItem Content="PasteBin" Tag="PasteBin"/>
+                <TextBlock Text="NETWORK SETTINGS" FontSize="12" FontWeight="Bold" Foreground="#4D7CFE"
+                           Margin="0,0,0,16" />
+
+                <TextBlock Text="Network Fetch Priority" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold"
+                           Margin="0,0,0,8" />
+                <ComboBox x:Name="PriorityComboBox" SelectedValuePath="Tag" Style="{StaticResource ModernComboBox}"
+                          Height="38" Width="200" HorizontalAlignment="Left" Margin="0,0,0,24">
+                    <ComboBoxItem Content="GitHub" Tag="GitHub" />
+                    <ComboBoxItem Content="PasteBin" Tag="PasteBin" />
                 </ComboBox>
 
-                <TextBlock Text="GitHub News URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBox x:Name="GitHubUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24"/>
+                <TextBlock Text="GitHub News URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold"
+                           Margin="0,0,0,8" />
+                <TextBox x:Name="GitHubUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24" />
 
-                <TextBlock Text="Pastebin News URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBox x:Name="PastebinUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24"/>
+                <TextBlock Text="Pastebin News URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold"
+                           Margin="0,0,0,8" />
+                <TextBox x:Name="PastebinUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24" />
 
-                <TextBlock Text="GitHub AngelScript XSHD Syntax URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBox x:Name="HighlightGitHubUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24"/>
+                <TextBlock Text="GitHub AngelScript XSHD Syntax URL" Foreground="#9CA3AF" FontSize="13"
+                           FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBox x:Name="HighlightGitHubUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24" />
 
-                <TextBlock Text="Pastebin AngelScript XSHD Syntax URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBox x:Name="HighlightPastebinUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24"/>
+                <TextBlock Text="Pastebin AngelScript XSHD Syntax URL" Foreground="#9CA3AF" FontSize="13"
+                           FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBox x:Name="HighlightPastebinUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24" />
 
-                <TextBlock Text="GitHub AngelScript Autocompletion URL" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBox x:Name="CompletionGitHubUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24"/>
+                <TextBlock Text="GitHub AngelScript Autocompletion URL" Foreground="#9CA3AF" FontSize="13"
+                           FontWeight="SemiBold" Margin="0,0,0,8" />
+                <TextBox x:Name="CompletionGitHubUrlTextBox" Style="{StaticResource ModernTextBox}" Margin="0,0,0,24" />
 
-                <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,24"/>
+                <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,24" />
 
-                <TextBlock Text="EDITOR &amp; ENVIRONMENT" FontSize="12" FontWeight="Bold" Foreground="#4D7CFE" Margin="0,0,0,16"/>
+                <TextBlock Text="EDITOR &amp; ENVIRONMENT" FontSize="12" FontWeight="Bold" Foreground="#4D7CFE"
+                           Margin="0,0,0,16" />
 
-                <TextBlock Text="Editor Font Size" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="Editor Font Size" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold"
+                           Margin="0,0,0,8" />
                 <Grid Margin="0,0,0,24" Width="250" HorizontalAlignment="Left">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Slider x:Name="FontSizeSlider" 
-                            Style="{StaticResource ModernSlider}" 
-                            IsSnapToTickEnabled="False" 
-                            Grid.Column="0" 
-                            VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="{Binding ElementName=FontSizeSlider, Path=Value, StringFormat={}{0:0.0} px}" Foreground="#F3F4F6" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" Margin="16,0,0,0" Width="55" TextAlignment="Right"/>
+                    <Slider x:Name="FontSizeSlider"
+                            Style="{StaticResource ModernSlider}"
+                            IsSnapToTickEnabled="False"
+                            Grid.Column="0"
+                            VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding ElementName=FontSizeSlider, Path=Value, StringFormat={}{0:0.0} px}"
+                               Foreground="#F3F4F6" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
+                               Margin="16,0,0,0" Width="55" TextAlignment="Right" />
                 </Grid>
 
-                <TextBlock Text="AngelScript Compiler Path (.exe)" Foreground="#9CA3AF" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="AngelScript Compiler Path (.exe)" Foreground="#9CA3AF" FontSize="13"
+                           FontWeight="SemiBold" Margin="0,0,0,8" />
                 <Grid Margin="0,0,0,24">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="AsCompilerPathTextBox" Style="{StaticResource ModernTextBox}" Grid.Column="0"/>
-                    <Button Content="Browse..." Style="{StaticResource SecondaryButtonStyle}" Grid.Column="1" Margin="8,0,0,0" Padding="14,0" Click="BrowseCompiler_Click"/>
+                    <TextBox x:Name="AsCompilerPathTextBox" Style="{StaticResource ModernTextBox}" Grid.Column="0" />
+                    <Button Content="Browse..." Style="{StaticResource SecondaryButtonStyle}" Grid.Column="1"
+                            Margin="8,0,0,0" Padding="14,0" Click="BrowseCompiler_Click" />
                 </Grid>
 
-                <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,24"/>
+                <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,24" />
 
-                <TextBlock Text="KEYBINDINGS" FontSize="12" FontWeight="Bold" Foreground="#4D7CFE" Margin="0,0,0,16"/>
+                <TextBlock Text="KEYBINDINGS" FontSize="12" FontWeight="Bold" Foreground="#4D7CFE" Margin="0,0,0,16" />
 
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Hide Search Panel" Foreground="#9CA3AF" FontSize="13" VerticalAlignment="Center"/>
-                    <Button x:Name="HideSearchPanelHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}" Content="Escape" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"/>
-                </Grid>
-
-                <Grid Margin="0,0,0,12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Toggle Comment" Foreground="#9CA3AF" FontSize="13" VerticalAlignment="Center"/>
-                    <Button x:Name="ToggleCommentHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl + OemQuestion" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"/>
+                    <TextBlock Grid.Column="0" Text="Hide Search Panel" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="HideSearchPanelHotkeyButton" Grid.Column="1"
+                            Style="{StaticResource HotkeyButtonStyle}" Content="Escape" Click="HotkeyButton_Click"
+                            KeyDown="HotkeyButton_KeyDown" PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>
 
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Global Search" Foreground="#9CA3AF" FontSize="13" VerticalAlignment="Center"/>
-                    <Button x:Name="GlobalSearchHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl + Shift + F" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"/>
+                    <TextBlock Grid.Column="0" Text="Toggle Comment" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="ToggleCommentHotkeyButton" Grid.Column="1"
+                            Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl + OemQuestion"
+                            Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"
+                            PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>
 
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Save File" Foreground="#9CA3AF" FontSize="13" VerticalAlignment="Center"/>
-                    <Button x:Name="SaveFileHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl + S" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"/>
-                </Grid>
-
-                <Grid Margin="0,0,0,12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Show Search Panel" Foreground="#9CA3AF" FontSize="13" VerticalAlignment="Center"/>
-                    <Button x:Name="SearchPanelHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl + F" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"/>
+                    <TextBlock Grid.Column="0" Text="Global Search" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="GlobalSearchHotkeyButton" Grid.Column="1"
+                            Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl + Shift + F"
+                            Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"
+                            PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>
 
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Duplicate Current Line" Foreground="#9CA3AF" FontSize="13" VerticalAlignment="Center"/>
-                    <Button x:Name="DuplicateLineHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl + D" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"/>
+                    <TextBlock Grid.Column="0" Text="Save File" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="SaveFileHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}"
+                            Content="Ctrl + S" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"
+                            PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>
 
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Save All Files" Foreground="#9CA3AF" FontSize="13" VerticalAlignment="Center"/>
-                    <Button x:Name="SaveAllHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl + Shift + S" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"/>
+                    <TextBlock Grid.Column="0" Text="Show Search Panel" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="SearchPanelHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}"
+                            Content="Ctrl + F" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"
+                            PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>
 
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Run Compiler" Foreground="#9CA3AF" FontSize="13" VerticalAlignment="Center"/>
-                    <Button x:Name="RunCompilerHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl + F5" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"/>
+                    <TextBlock Grid.Column="0" Text="Duplicate Current Line" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="DuplicateLineHotkeyButton" Grid.Column="1"
+                            Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl + D" Click="HotkeyButton_Click"
+                            KeyDown="HotkeyButton_KeyDown" PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>
 
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Undo" Foreground="#9CA3AF" FontSize="13" VerticalAlignment="Center"/>
-                    <Button x:Name="UndoHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl + Z" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"/>
+                    <TextBlock Grid.Column="0" Text="Save All Files" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="SaveAllHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}"
+                            Content="Ctrl + Shift + S" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"
+                            PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>
 
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Redo" Foreground="#9CA3AF" FontSize="13" VerticalAlignment="Center"/>
-                    <Button x:Name="RedoHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl + Shift + Z" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"/>
+                    <TextBlock Grid.Column="0" Text="Run Compiler" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="RunCompilerHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}"
+                            Content="Ctrl + F5" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"
+                            PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>
-                
+
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Delete" Foreground="#9CA3AF" FontSize="13" VerticalAlignment="Center"/>
-                    <Button x:Name="DeleteFileHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}" Content="Delete" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"/>
+                    <TextBlock Grid.Column="0" Text="Undo" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="UndoHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}"
+                            Content="Ctrl + Z" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"
+                            PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>
-                
+
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Redo" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="RedoHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}"
+                            Content="Ctrl + Shift + Z" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"
+                            PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
+                </Grid>
+
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Delete" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="DeleteFileHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}"
+                            Content="Delete" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"
+                            PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
+                </Grid>
+
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Rename File" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="RenameFileHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}"
+                            Content="F2" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"
+                            PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
+                </Grid>
+
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Navigate Back" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="NavigateBackHotkeyButton" Grid.Column="1"
+                            Style="{StaticResource HotkeyButtonStyle}" Content="F2" Click="HotkeyButton_Click"
+                            KeyDown="HotkeyButton_KeyDown" PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
+                </Grid>
+
                 <Grid Margin="0,0,0,24">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Rename File" Foreground="#9CA3AF" FontSize="13" VerticalAlignment="Center"/>
-                    <Button x:Name="RenameFileHotkeyButton" Grid.Column="1" Style="{StaticResource HotkeyButtonStyle}" Content="F2" Click="HotkeyButton_Click" KeyDown="HotkeyButton_KeyDown"/>
+                    <TextBlock Grid.Column="0" Text="Navigate Forward" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="NavigateForwardHotkeyButton" Grid.Column="1"
+                            Style="{StaticResource HotkeyButtonStyle}" Content="F2" Click="HotkeyButton_Click"
+                            KeyDown="HotkeyButton_KeyDown" PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>
 
-                <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,24"/>
+                <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,24" />
 
-                <TextBlock Text="CONFIGURATION MANAGEMENT" Foreground="#4B5563" FontSize="11" FontWeight="Bold" Margin="0,0,0,12"/>
+                <TextBlock Text="CONFIGURATION MANAGEMENT" Foreground="#4B5563" FontSize="11" FontWeight="Bold"
+                           Margin="0,0,0,12" />
                 <StackPanel Orientation="Horizontal">
-                    <Button Content="Import Config (.json)" Style="{StaticResource SecondaryButtonStyle}" Click="ImportConfig_Click" Margin="0,0,12,0"/>
-                    <Button Content="Export Config (.json)" Style="{StaticResource SecondaryButtonStyle}" Click="ExportConfig_Click" Margin="0,0,12,0"/>
-                    <Button Content="Open Folder" Style="{StaticResource SecondaryButtonStyle}" Click="OpenConfigFolder_Click"/>
+                    <Button Content="Import Config (.json)" Style="{StaticResource SecondaryButtonStyle}"
+                            Click="ImportConfig_Click" Margin="0,0,12,0" />
+                    <Button Content="Export Config (.json)" Style="{StaticResource SecondaryButtonStyle}"
+                            Click="ExportConfig_Click" Margin="0,0,12,0" />
+                    <Button Content="Open Folder" Style="{StaticResource SecondaryButtonStyle}"
+                            Click="OpenConfigFolder_Click" />
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
-            <Button Content="Save Settings" Style="{StaticResource ActionButtonStyle}" Click="SaveSettings_Click"/>
+            <Button Content="Save Settings" Style="{StaticResource ActionButtonStyle}" Click="SaveSettings_Click" />
         </StackPanel>
     </Grid>
 </UserControl>

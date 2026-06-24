@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:local="clr-namespace:CB2Toolkit.UIEditor"
              xmlns:views="clr-namespace:CB2Toolkit.UIEditor.Views"
              mc:Ignorable="d"
              d:DesignHeight="750" d:DesignWidth="1200"

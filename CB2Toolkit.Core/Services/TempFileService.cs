@@ -5,9 +5,9 @@ namespace CB2Toolkit.Core.Services;
 
 public class TempFileService
 {
-    private static readonly Lazy<TempFileService> _instance = new Lazy<TempFileService>(() => new TempFileService());
+    private static readonly Lazy<TempFileService> _instance = new(() => new TempFileService());
     private readonly string _tempFolder;
-    
+
     private readonly HashSet<string> _pendingFiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _lock = new();
 
@@ -33,21 +33,23 @@ public class TempFileService
             {
                 sb.Append(hashBytes[i].ToString("X2"));
             }
-            return Path.Combine(_tempFolder, sb.ToString() + ".tmp");
+
+            return Path.Combine(_tempFolder, sb + ".tmp");
         }
     }
 
     public void SaveTemp(string filePath, string content)
     {
+        lock (_lock)
+        {
+            _pendingFiles.Add(filePath);
+        }
+
+
         try
         {
             string tempPath = GetTempPathForFile(filePath);
             File.WriteAllText(tempPath, content, Encoding.UTF8);
-            
-            lock (_lock)
-            {
-                _pendingFiles.Add(filePath);
-            }
         }
         catch (Exception ex)
         {
@@ -60,15 +62,34 @@ public class TempFileService
         try
         {
             string tempPath = GetTempPathForFile(filePath);
-            if (File.Exists(tempPath))
+            if (!File.Exists(tempPath)) return null;
+
+            string tempContent = File.ReadAllText(tempPath, Encoding.UTF8);
+
+            if (File.Exists(filePath))
             {
-                return File.ReadAllText(tempPath, Encoding.UTF8);
+                string originalContent = File.ReadAllText(filePath, Encoding.UTF8);
+
+                if (string.Equals(tempContent, originalContent, StringComparison.Ordinal))
+                {
+                    File.Delete(tempPath);
+
+                    lock (_lock)
+                    {
+                        _pendingFiles.Remove(filePath);
+                    }
+
+                    return null;
+                }
             }
+
+            return tempContent;
         }
         catch (Exception ex)
         {
             LoggerService.Instance.LogError($"Failed to read temporary file for {filePath}: {ex.Message}");
         }
+
         return null;
     }
 
@@ -81,7 +102,7 @@ public class TempFileService
             {
                 File.Delete(tempPath);
             }
-            
+
             lock (_lock)
             {
                 _pendingFiles.Remove(filePath);
@@ -92,7 +113,7 @@ public class TempFileService
             LoggerService.Instance.LogError($"Failed to delete temporary file for {filePath}: {ex.Message}");
         }
     }
-    
+
     public List<string> GetPendingFiles()
     {
         lock (_lock)

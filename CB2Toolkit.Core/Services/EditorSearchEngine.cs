@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using CB2Toolkit.Core.Models;
 
-namespace CB2Toolkit.CodeEditor.Services;
+namespace CB2Toolkit.Core.Services;
 
 public class EditorSearchEngine
 {

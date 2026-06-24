@@ -60,18 +60,18 @@ public partial class VoiceWindow : Window
 
     private void VoiceService_OnRemoteVolumeChanged(float volume)
     {
-        Dispatcher.BeginInvoke(new Action(() =>
+        Dispatcher.InvokeAsync(() =>
         {
             if (VolumeScale != null) VolumeScale.ScaleX = volume;
-        }));
+        });
     }
 
     private void VoiceService_OnLocalVolumeChanged(float volume)
     {
-        Dispatcher.BeginInvoke(new Action(() =>
+        Dispatcher.InvokeAsync(() =>
         {
             if (LocalVolumeScale != null) LocalVolumeScale.ScaleX = volume;
-        }));
+        });
     }
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

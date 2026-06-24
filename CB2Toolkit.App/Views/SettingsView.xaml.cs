@@ -17,6 +17,18 @@ public partial class SettingsView : UserControl
 {
     private bool _isBusy;
 
+    private static readonly Brush ActiveBackgroundBrush = CreateFrozenBrush("#2B2B30");
+    private static readonly Brush ActiveBorderBrush = CreateFrozenBrush("#4D7CFE");
+    private static readonly Brush NormalBackgroundBrush = CreateFrozenBrush("#1E1E22");
+    private static readonly Brush NormalBorderBrush = CreateFrozenBrush("#2B2B30");
+
+    private static Brush CreateFrozenBrush(string hexColor)
+    {
+        var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hexColor));
+        brush.Freeze();
+        return brush;
+    }
+
     public SettingsView()
     {
         InitializeComponent();
@@ -48,6 +60,8 @@ public partial class SettingsView : UserControl
         LoadHotkey(RedoHotkeyButton, settings.Hotkeys.RedoKey, settings.Hotkeys.RedoModifiers);
         LoadHotkey(RenameFileHotkeyButton, settings.Hotkeys.RenameFile, settings.Hotkeys.RenameFileModifiers);
         LoadHotkey(DeleteFileHotkeyButton, settings.Hotkeys.DeleteFile, settings.Hotkeys.DeleteFileModifiers);
+        LoadHotkey(NavigateBackHotkeyButton, settings.Hotkeys.NavigateBackKey, settings.Hotkeys.NavigateBackModifiers);
+        LoadHotkey(NavigateForwardHotkeyButton, settings.Hotkeys.NavigateForwardKey, settings.Hotkeys.NavigateForwardModifiers);
     }
 
     private void SaveUiToSettings(AppSettings settings)
@@ -77,14 +91,16 @@ public partial class SettingsView : UserControl
         SaveHotkey(RedoHotkeyButton, (k, m) => { settings.Hotkeys.RedoKey = k; settings.Hotkeys.RedoModifiers = m; });
         SaveHotkey(RenameFileHotkeyButton, (k, m) => { settings.Hotkeys.RenameFile = k; settings.Hotkeys.RenameFileModifiers = m; });
         SaveHotkey(DeleteFileHotkeyButton, (k, m) => { settings.Hotkeys.DeleteFile = k; settings.Hotkeys.DeleteFileModifiers = m; });
+        SaveHotkey(NavigateBackHotkeyButton, (k, m) => { settings.Hotkeys.NavigateBackKey = k; settings.Hotkeys.NavigateBackModifiers = m; });
+        SaveHotkey(NavigateForwardHotkeyButton, (k, m) => { settings.Hotkeys.NavigateForwardKey = k; settings.Hotkeys.NavigateForwardModifiers = m; });
     }
 
     private void HotkeyButton_Click(object sender, RoutedEventArgs e)
     {
-        var button = (Button)sender;
+        Button button = (Button)sender;
         button.Content = ">>> Press Key <<<";
-        button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2B2B30"));
-        button.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4D7CFE"));
+        button.Background = ActiveBackgroundBrush;
+        button.BorderBrush = ActiveBorderBrush;
     }
 
     private void HotkeyButton_KeyDown(object sender, KeyEventArgs e)
@@ -109,10 +125,34 @@ public partial class SettingsView : UserControl
         button.Content = modifiers == ModifierKeys.None ? keyStr : $"{modStr} + {keyStr}".Replace(", ", " + ");
         button.Tag = new Tuple<string, string>(keyStr, modStr);
 
-        button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E1E22"));
-        button.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2B2B30"));
+        button.Background = NormalBackgroundBrush;
+        button.BorderBrush = NormalBorderBrush;
     }
 
+    private void HotkeyButton_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        var button = (Button)sender;
+
+        if (button.Content is string content && content == ">>> Press Key <<<")
+        {
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                return;
+            }
+
+            e.Handled = true;
+
+            string keyStr = e.ChangedButton.ToString();
+            string modStr = Keyboard.Modifiers.ToString();
+
+            button.Content = Keyboard.Modifiers == ModifierKeys.None ? keyStr : $"{modStr} + {keyStr}".Replace(", ", " + ");
+            button.Tag = new Tuple<string, string>(keyStr, modStr);
+
+            button.Background = NormalBackgroundBrush;
+            button.BorderBrush = NormalBorderBrush;
+        }
+    }
+    
     private void LoadHotkey(Button button, string key, string modifiers)
     {
         button.Content = string.IsNullOrEmpty(modifiers) || modifiers == "None" ? key : $"{modifiers} + {key}".Replace(", ", " + ");

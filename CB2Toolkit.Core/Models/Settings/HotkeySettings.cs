@@ -37,4 +37,10 @@ public class HotkeySettings
     
     public string DeleteFile { get; set; } = "Delete";
     public string DeleteFileModifiers { get; set; } = "None";
+    
+    public string NavigateBackKey { get; set; } = "Left";
+    public string NavigateBackModifiers { get; set; } = "Alt";
+
+    public string NavigateForwardKey { get; set; } = "Right";
+    public string NavigateForwardModifiers { get; set; } = "Alt";
 }

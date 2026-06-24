@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using CB2Toolkit.CodeEditor.Models;
 using CB2Toolkit.CodeEditor.Models.Enums;
 
@@ -84,11 +85,11 @@ public partial class ModernMessageBox : Window
                 BtnOk.Visibility = Visibility.Visible;
                 BtnCancel.Visibility = Visibility.Visible;
                 
-                Dispatcher.BeginInvoke(new Action(() =>
+                Dispatcher.InvokeAsync(() =>
                 {
                     InputTextBox.Focus();
                     InputTextBox.SelectAll();
-                }), System.Windows.Threading.DispatcherPriority.Input);
+                }, DispatcherPriority.Input);
                 break;
         }
     }

@@ -19,7 +19,6 @@ using CB2Toolkit.Core.Models.Enums;
 using CB2Toolkit.Core.Models.Settings;
 using CB2Toolkit.Core.Services;
 using CB2Toolkit.Core.Utilities;
-using ICSharpCode.AvalonEdit.CodeCompletion;
 using ICSharpCode.AvalonEdit.Folding;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
@@ -28,13 +27,12 @@ using Microsoft.Win32;
 
 namespace CB2Toolkit.CodeEditor.Views;
 
-public partial class AngelScriptEditorView : UserControl
+public partial class AngelScriptEditorView : LifecycleUserControl
 {
-    private CompletionWindow? _completionWindow;
     private string? _currentFilePath;
     private bool _isUnsaved;
 
-    private bool _isSuppressingTextEvents
+    private bool IsSuppressingTextEvents
     {
         get => _historyManager.IsSuspended;
         set => _historyManager.IsSuspended = value;
@@ -52,60 +50,92 @@ public partial class AngelScriptEditorView : UserControl
     private FoldingManager? _foldingManager;
     private EditorHistoryManager _historyManager;
     private BraceFoldingStrategy? _foldingStrategy;
-    private DispatcherTimer? _foldingTimer;
+    private DispatcherTimer _foldingTimer;
     private ErrorColorizer _errorColorizer;
     private DispatcherTimer _validationTimer;
     private AngelScriptAutocompleteManager _autocompleteManager;
-    private TerminalExecutionService _terminalService = new();
+    private readonly TerminalExecutionService _terminalService = new();
 
     public AngelScriptEditorView()
     {
         InitializeComponent();
-        Loaded += async (s, e) =>
-        {
-            CodeEditor.FontSize = SettingsService.Instance.Current.EditorFontSize;
-            _autocompleteManager = new AngelScriptAutocompleteManager(CodeEditor);
-
-            InitCodeFolding();
-            InitAdditionalFeatures();
-            ConfigureEditorSelection();
-
-            ProjectService.Instance.OnTreeStructureChanged += () => Dispatcher.Invoke(LoadProjectTree);
-            ProjectService.Instance.OnFileChangedExternally += path => Dispatcher.Invoke(() => OnFileChanged(path));
-            ProjectService.Instance.OnActiveFileDeletedExternally +=
-                path => Dispatcher.Invoke(() => OnFileDeleted(path));
-            ProjectService.Instance.OnActiveFileRenamedExternally += (oldPath, newPath) =>
-                Dispatcher.Invoke(() => OnFileRenamed(oldPath, newPath));
-            _terminalService.OutputReceived +=
-                text => Dispatcher.Invoke(() => LoggerService.Instance.Log(text, "#D4D4D4"));
-            _terminalService.ErrorReceived +=
-                text => Dispatcher.Invoke(() => LoggerService.Instance.Log(text, "#CD5C5C"));
-            LoggerService.Instance.OnLogAdded += entry => Dispatcher.Invoke(() => ConsoleOutput.Items.Add(entry));
-            LoggerService.Instance.OnLogCleared += () => Dispatcher.Invoke(() => ConsoleOutput.Items.Clear());
-            _historyManager = new EditorHistoryManager(CodeEditor);
-            var settings = SettingsService.Instance.Current;
-            CompilePathInput.Text = settings.CustomAngelScriptCompilePath ?? string.Empty;
-
-            if (settings.RecentAngelScriptFolders.Count > 0)
-            {
-                string lastFolderPath = settings.RecentAngelScriptFolders[0];
-                await OpenProject(lastFolderPath);
-
-                if (!string.IsNullOrEmpty(settings.LastOpenedAngelScriptFilePath) &&
-                    File.Exists(settings.LastOpenedAngelScriptFilePath))
-                {
-                    OpenFile(settings.LastOpenedAngelScriptFilePath);
-                }
-            }
-
-            _ = LoadAngelScriptHighlightingAsync();
-        };
-
-        Unloaded += (s, e) => { SaveCurrentTreeState(); };
 
         CodeEditor.TextChanged += CodeEditor_TextChanged;
         CodeEditor.PreviewMouseWheel += CodeEditor_PreviewMouseWheel;
     }
+
+    protected override async Task OnViewLoadedAsync()
+    {
+        CodeEditor.FontSize = SettingsService.Instance.Current.EditorFontSize;
+        _autocompleteManager = new AngelScriptAutocompleteManager(CodeEditor);
+
+        InitCodeFolding();
+        InitAdditionalFeatures();
+        ConfigureEditorSelection();
+
+        ProjectService.Instance.OnTreeStructureChanged += ProjectService_TreeStructureChanged;
+        ProjectService.Instance.OnFileChangedExternally += ProjectService_FileChangedExternally;
+        ProjectService.Instance.OnActiveFileDeletedExternally += ProjectService_ActiveFileDeletedExternally;
+        ProjectService.Instance.OnActiveFileRenamedExternally += ProjectService_ActiveFileRenamedExternally;
+
+        _terminalService.OutputReceived += TerminalService_OutputReceived;
+        _terminalService.ErrorReceived += TerminalService_ErrorReceived;
+
+        LoggerService.Instance.OnLogAdded += LoggerService_OnLogAdded;
+        LoggerService.Instance.OnLogCleared += LoggerService_OnLogCleared;
+
+        _historyManager = new EditorHistoryManager(CodeEditor);
+        var settings = SettingsService.Instance.Current;
+        CompilePathInput.Text = settings.CustomAngelScriptCompilePath;
+
+        if (settings.RecentAngelScriptFolders.Count > 0)
+        {
+            string lastFolderPath = settings.RecentAngelScriptFolders[0];
+            await OpenProject(lastFolderPath);
+
+            if (!string.IsNullOrEmpty(settings.LastOpenedAngelScriptFilePath) &&
+                File.Exists(settings.LastOpenedAngelScriptFilePath))
+            {
+                OpenFile(settings.LastOpenedAngelScriptFilePath);
+            }
+        }
+
+        _ = LoadAngelScriptHighlightingAsync();
+    }
+
+    protected override void OnViewUnloaded()
+    {
+        SaveCurrentTreeState();
+
+        ProjectService.Instance.OnTreeStructureChanged -= ProjectService_TreeStructureChanged;
+        ProjectService.Instance.OnFileChangedExternally -= ProjectService_FileChangedExternally;
+        ProjectService.Instance.OnActiveFileDeletedExternally -= ProjectService_ActiveFileDeletedExternally;
+        ProjectService.Instance.OnActiveFileRenamedExternally -= ProjectService_ActiveFileRenamedExternally;
+
+        _terminalService.OutputReceived -= TerminalService_OutputReceived;
+        _terminalService.ErrorReceived -= TerminalService_ErrorReceived;
+
+        LoggerService.Instance.OnLogAdded -= LoggerService_OnLogAdded;
+        LoggerService.Instance.OnLogCleared -= LoggerService_OnLogCleared;
+    }
+
+    private void ProjectService_TreeStructureChanged() => Dispatcher.InvokeAsync(LoadProjectTree);
+    private void ProjectService_FileChangedExternally(string path) => Dispatcher.InvokeAsync(() => OnFileChanged(path));
+
+    private void ProjectService_ActiveFileDeletedExternally(string path) =>
+        Dispatcher.InvokeAsync(() => OnFileDeleted(path));
+
+    private void ProjectService_ActiveFileRenamedExternally(string oldPath, string newPath) =>
+        Dispatcher.InvokeAsync(() => OnFileRenamed(oldPath, newPath));
+
+    private void TerminalService_OutputReceived(string text) =>
+        Dispatcher.InvokeAsync(() => LoggerService.Instance.Log(text, "#D4D4D4"));
+
+    private void TerminalService_ErrorReceived(string text) =>
+        Dispatcher.InvokeAsync(() => LoggerService.Instance.Log(text, "#CD5C5C"));
+
+    private void LoggerService_OnLogAdded(object entry) => Dispatcher.InvokeAsync(() => ConsoleOutput.Items.Add(entry));
+    private void LoggerService_OnLogCleared() => Dispatcher.InvokeAsync(() => ConsoleOutput.Items.Clear());
 
     private void ConfigureEditorSelection()
     {
@@ -113,7 +143,6 @@ public partial class AngelScriptEditorView : UserControl
         CodeEditor.TextArea.SelectionBrush = new SolidColorBrush(Color.FromArgb(0x3D, 0x4D, 0x7C, 0xFE));
         CodeEditor.TextArea.SelectionBorder = null;
     }
-
 
     private void SaveCurrentTreeState()
     {
@@ -172,90 +201,6 @@ public partial class AngelScriptEditorView : UserControl
                     LoggerService.Instance.LogError($"[Delete Error] {ex.Message}");
                 }
             }
-        }
-    }
-
-    private void View_PreviewKeyDown(object sender, KeyEventArgs e)
-    {
-        HotkeySettings hotkeys = SettingsService.Instance.Current.Hotkeys;
-
-        if (HotkeyMatcher.IsMatch(e, hotkeys.HideSearchPanelKey, hotkeys.HideSearchPanelModifiers)
-            && SearchPanel.Visibility == Visibility.Visible)
-        {
-            HideSearchPanel();
-            e.Handled = true;
-            return;
-        }
-
-        if (HotkeyMatcher.IsMatch(e, hotkeys.ToggleCommentKey, hotkeys.ToggleCommentModifiers))
-        {
-            CodeEditor.ToggleComment();
-            e.Handled = true;
-            return;
-        }
-
-        if (HotkeyMatcher.IsMatch(e, hotkeys.GlobalSearchKey, hotkeys.GlobalSearchModifiers))
-        {
-            ShowGlobalSearch();
-            e.Handled = true;
-            return;
-        }
-
-        if (HotkeyMatcher.IsMatch(e, hotkeys.SaveFileKey, hotkeys.SaveFileModifiers))
-        {
-            SaveCurrentFile();
-            e.Handled = true;
-            return;
-        }
-
-        if (HotkeyMatcher.IsMatch(e, hotkeys.SearchPanelKey, hotkeys.SearchPanelModifiers))
-        {
-            ShowSearchPanel();
-            e.Handled = true;
-            return;
-        }
-
-        if (HotkeyMatcher.IsMatch(e, hotkeys.DuplicateLineKey, hotkeys.DuplicateLineModifiers))
-        {
-            CodeEditor.DuplicateCurrentLine();
-            e.Handled = true;
-            return;
-        }
-
-        if (HotkeyMatcher.IsMatch(e, hotkeys.SaveAllKey, hotkeys.SaveAllModifiers))
-        {
-            SaveAllFiles();
-            e.Handled = true;
-            return;
-        }
-
-        if (HotkeyMatcher.IsMatch(e, hotkeys.RunCompilerKey, hotkeys.RunCompilerModifiers))
-        {
-            RunCompiler();
-            e.Handled = true;
-            return;
-        }
-
-        if (HotkeyMatcher.IsMatch(e, hotkeys.RedoKey, hotkeys.RedoModifiers))
-        {
-            if (CodeEditor.CanRedo)
-            {
-                CodeEditor.Redo();
-            }
-            else
-            {
-                _historyManager.Redo();
-            }
-
-            e.Handled = true;
-            return;
-        }
-
-        if (HotkeyMatcher.IsMatch(e, hotkeys.UndoKey, hotkeys.UndoModifiers))
-        {
-            _historyManager.Undo();
-            e.Handled = true;
-            return;
         }
     }
 
@@ -321,18 +266,72 @@ public partial class AngelScriptEditorView : UserControl
         _isNavigatingHistory = false;
     }
 
-    private void View_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    private void View_PreviewKeyDown(object sender, KeyEventArgs e) => HandleInputEvent(e);
+    private void View_PreviewMouseDown(object sender, MouseButtonEventArgs e) => HandleInputEvent(e);
+
+    private void HandleInputEvent(RoutedEventArgs e)
     {
-        if (e.ChangedButton == MouseButton.XButton1)
+        var hotkeys = SettingsService.Instance.Current.Hotkeys;
+
+        if (TryTrigger(e, hotkeys.HideSearchPanelKey, hotkeys.HideSearchPanelModifiers, HideSearchPanel,
+                () => SearchPanel.Visibility == Visibility.Visible)) return;
+        if (TryTrigger(e, hotkeys.ToggleCommentKey, hotkeys.ToggleCommentModifiers,
+                () => CodeEditor.ToggleComment())) return;
+        if (TryTrigger(e, hotkeys.GlobalSearchKey, hotkeys.GlobalSearchModifiers, ShowGlobalSearch)) return;
+        if (TryTrigger(e, hotkeys.SaveFileKey, hotkeys.SaveFileModifiers, SaveCurrentFile)) return;
+        if (TryTrigger(e, hotkeys.SearchPanelKey, hotkeys.SearchPanelModifiers, ShowSearchPanel)) return;
+        if (TryTrigger(e, hotkeys.DuplicateLineKey, hotkeys.DuplicateLineModifiers,
+                () => CodeEditor.DuplicateCurrentLine())) return;
+        if (TryTrigger(e, hotkeys.SaveAllKey, hotkeys.SaveAllModifiers, SaveAllFiles)) return;
+        if (TryTrigger(e, hotkeys.RunCompilerKey, hotkeys.RunCompilerModifiers, RunCompiler)) return;
+        if (TryTrigger(e, hotkeys.UndoKey, hotkeys.UndoModifiers, () => _historyManager.Undo())) return;
+        if (TryTrigger(e, hotkeys.NavigateBackKey, hotkeys.NavigateBackModifiers, NavigateBack)) return;
+        if (TryTrigger(e, hotkeys.NavigateForwardKey, hotkeys.NavigateForwardModifiers, NavigateForward)) return;
+
+        if (TryTrigger(e, hotkeys.RedoKey, hotkeys.RedoModifiers, () =>
+            {
+                if (CodeEditor.CanRedo) CodeEditor.Redo();
+                else _historyManager.Redo();
+            })) return;
+    }
+
+    private bool TryTrigger(RoutedEventArgs e, string keySetting, string modifiersSetting, Action action,
+        Func<bool> condition = null)
+    {
+        bool isMatch = false;
+
+        if (e is KeyEventArgs keyArgs)
         {
-            NavigateBack();
-            e.Handled = true;
+            isMatch = HotkeyMatcher.IsMatch(keyArgs, keySetting, modifiersSetting);
         }
-        else if (e.ChangedButton == MouseButton.XButton2)
+        else if (e is MouseButtonEventArgs mouseArgs)
         {
-            NavigateForward();
-            e.Handled = true;
+            isMatch = IsMouseHotkeyMatch(mouseArgs.ChangedButton, keySetting, modifiersSetting);
         }
+
+        if (isMatch && (condition == null || condition()))
+        {
+            action();
+            e.Handled = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool IsMouseHotkeyMatch(MouseButton button, string keySetting, string modifiersSetting)
+    {
+        if (!string.Equals(button.ToString(), keySetting, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (Enum.TryParse<ModifierKeys>(modifiersSetting, out var requiredModifiers))
+        {
+            return Keyboard.Modifiers == requiredModifiers;
+        }
+
+        return false;
     }
 
     private void ShowGlobalSearch()
@@ -389,14 +388,14 @@ public partial class AngelScriptEditorView : UserControl
 
             if (results.Count == 0)
             {
-                ConsoleOutput.Items.Add(new { Text = "No matches found.", Color = Brushes.Gray });
+                ConsoleOutput.Items.Add(new LogEntry { Text = "No matches found.", Color = Brushes.Gray.ToString() });
                 return;
             }
 
             foreach (var result in results)
             {
                 string logMessage = $"[{result.FilePath}] ({result.LineNumber}): {result.LineText}";
-                ConsoleOutput.Items.Add(new { Text = logMessage, Color = Brushes.LightBlue });
+                ConsoleOutput.Items.Add(new LogEntry { Text = logMessage, Color = Brushes.LightBlue.ToString() });
             }
         }
         catch (Exception ex)
@@ -493,11 +492,13 @@ public partial class AngelScriptEditorView : UserControl
         }
 
         SearchTextBox.SelectAll();
+        UpdateSearchMarkers(SearchTextBox.Text);
     }
 
     private void HideSearchPanel()
     {
         SearchPanel.Visibility = Visibility.Collapsed;
+        SearchMarkersCanvas.Children.Clear();
         CodeEditor.Focus();
     }
 
@@ -527,6 +528,8 @@ public partial class AngelScriptEditorView : UserControl
                 var line = CodeEditor.Document.GetLineByOffset(matchIndex);
                 CodeEditor.ScrollTo(line.LineNumber, CodeEditor.TextArea.Caret.VisualColumn);
             }
+        
+            UpdateSearchMarkers(textToFind);
         }
         catch (Exception ex)
         {
@@ -534,6 +537,88 @@ public partial class AngelScriptEditorView : UserControl
         }
     }
 
+    private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        UpdateSearchMarkers(SearchTextBox.Text);
+    }
+
+    private void SearchOption_Changed(object sender, RoutedEventArgs e)
+    {
+        UpdateSearchMarkers(SearchTextBox.Text);
+    }
+    private void UpdateSearchMarkers(string textToFind)
+{
+    SearchMarkersCanvas.Children.Clear();
+
+    if (string.IsNullOrEmpty(textToFind) || CodeEditor.LineCount == 0) return;
+
+    string text = CodeEditor.Text;
+    bool matchCase = MatchCaseToggle.IsChecked == true;
+    bool wholeWord = WholeWordToggle.IsChecked == true;
+    bool useRegex = RegexToggle.IsChecked == true;
+    var lineNumbers = new HashSet<int>();
+
+    try
+    {
+        if (useRegex)
+        {
+            var options = matchCase ? System.Text.RegularExpressions.RegexOptions.None : System.Text.RegularExpressions.RegexOptions.IgnoreCase;
+            var matches = System.Text.RegularExpressions.Regex.Matches(text, textToFind, options);
+            foreach (System.Text.RegularExpressions.Match m in matches)
+            {
+                var line = CodeEditor.Document.GetLineByOffset(m.Index);
+                lineNumbers.Add(line.LineNumber);
+            }
+        }
+        else
+        {
+            System.StringComparison comp = matchCase ? System.StringComparison.Ordinal : System.StringComparison.OrdinalIgnoreCase;
+            int index = 0;
+            while ((index = text.IndexOf(textToFind, index, comp)) != -1)
+            {
+                var line = CodeEditor.Document.GetLineByOffset(index);
+                if (wholeWord)
+                {
+                    bool startOk = index == 0 || !char.IsLetterOrDigit(text[index - 1]);
+                    bool endOk = (index + textToFind.Length) >= text.Length || !char.IsLetterOrDigit(text[index + textToFind.Length]);
+                    if (startOk && endOk)
+                    {
+                        lineNumbers.Add(line.LineNumber);
+                    }
+                }
+                else
+                {
+                    lineNumbers.Add(line.LineNumber);
+                }
+                index += textToFind.Length;
+                if (textToFind.Length == 0) break;
+            }
+        }
+
+        double canvasHeight = SearchMarkersCanvas.ActualHeight;
+        int totalLines = CodeEditor.LineCount;
+
+        if (canvasHeight <= 0 || totalLines <= 0) return;
+
+        foreach (int lineNum in lineNumbers)
+        {
+            double y = ((double)(lineNum - 1) / totalLines) * canvasHeight;
+            var rect = new System.Windows.Shapes.Rectangle
+            {
+                Width = 10,
+                Height = 4,
+                Fill = new SolidColorBrush(Color.FromRgb(0x4D, 0x7C, 0xFE)),
+                Opacity = 0.8
+            };
+            Canvas.SetTop(rect, y);
+            Canvas.SetLeft(rect, 2);
+            SearchMarkersCanvas.Children.Add(rect);
+        }
+    }
+    catch
+    {
+    }
+}
     private async void CodeEditor_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
         if (Keyboard.Modifiers == ModifierKeys.Control)
@@ -543,13 +628,15 @@ public partial class AngelScriptEditorView : UserControl
             {
                 CodeEditor.FontSize = newSize;
                 SettingsService.Instance.Current.EditorFontSize = newSize;
-
                 if (!_isWheelSaving)
                 {
                     _isWheelSaving = true;
                     try
                     {
                         await SettingsService.Instance.SaveAsync();
+                    }
+                    catch
+                    {
                     }
                     finally
                     {
@@ -874,8 +961,8 @@ public partial class AngelScriptEditorView : UserControl
     {
         if (ConsoleScrollViewer == null) return;
 
-        ConsoleScrollViewer.Dispatcher.BeginInvoke(DispatcherPriority.Background,
-            new Action(() => { ConsoleScrollViewer.ScrollToEnd(); }));
+        ConsoleScrollViewer.Dispatcher.InvokeAsync(() => { ConsoleScrollViewer.ScrollToEnd(); },
+            DispatcherPriority.Background);
     }
 
     private void OpenFolder_Click(object sender, RoutedEventArgs e)
@@ -916,7 +1003,7 @@ public partial class AngelScriptEditorView : UserControl
 
         if (!_isUnsaved)
         {
-            _isSuppressingTextEvents = true;
+            IsSuppressingTextEvents = true;
             try
             {
                 CodeEditor.Document.Text = File.ReadAllText(_currentFilePath);
@@ -925,7 +1012,7 @@ public partial class AngelScriptEditorView : UserControl
             {
             }
 
-            _isSuppressingTextEvents = false;
+            IsSuppressingTextEvents = false;
         }
         else
         {
@@ -938,7 +1025,7 @@ public partial class AngelScriptEditorView : UserControl
 
             if (result.Result == ModernBoxResultType.Yes)
             {
-                _isSuppressingTextEvents = true;
+                IsSuppressingTextEvents = true;
                 try
                 {
                     CodeEditor.Document.Text = File.ReadAllText(_currentFilePath);
@@ -950,7 +1037,7 @@ public partial class AngelScriptEditorView : UserControl
                 {
                 }
 
-                _isSuppressingTextEvents = false;
+                IsSuppressingTextEvents = false;
             }
         }
     }
@@ -1074,17 +1161,13 @@ public partial class AngelScriptEditorView : UserControl
         var sb = new StringBuilder();
         foreach (var item in ConsoleOutput.Items)
         {
-            if (item != null)
+            if (item is LogEntry entry)
             {
-                dynamic entry = item;
-                try
-                {
-                    sb.AppendLine(entry.Text);
-                }
-                catch
-                {
-                    sb.AppendLine(item.ToString());
-                }
+                sb.AppendLine(entry.Text);
+            }
+            else if (item != null)
+            {
+                sb.AppendLine(item.ToString());
             }
         }
 
@@ -1120,7 +1203,7 @@ public partial class AngelScriptEditorView : UserControl
 
     private void CodeEditor_TextChanged(object sender, EventArgs e)
     {
-        if (_isSuppressingTextEvents || string.IsNullOrEmpty(_currentFilePath)) return;
+        if (IsSuppressingTextEvents || string.IsNullOrEmpty(_currentFilePath)) return;
 
         _isUnsaved = true;
         SetUnsavedStatus(true);
@@ -1157,7 +1240,7 @@ public partial class AngelScriptEditorView : UserControl
 
         _historyManager.SwitchFile(_currentFilePath, filePath);
 
-        _isSuppressingTextEvents = true;
+        IsSuppressingTextEvents = true;
         _currentFilePath = filePath;
         _foldingManager?.Clear();
 
@@ -1179,7 +1262,7 @@ public partial class AngelScriptEditorView : UserControl
 
         _foldingStrategy?.UpdateFoldings(_foldingManager, CodeEditor.Document);
         CurrentFileNameText.Text = Path.GetFileName(_currentFilePath);
-        _isSuppressingTextEvents = false;
+        IsSuppressingTextEvents = false;
         DiscordRpcService.UpdateToEditing(Path.GetFileName(_currentFilePath));
 
         FileTreeStateService.Instance.SaveLastOpenedFile(filePath);
@@ -1541,9 +1624,8 @@ public partial class AngelScriptEditorView : UserControl
     private void ConsoleOutput_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         var element = e.OriginalSource as FrameworkElement;
-        if (element?.DataContext == null) return;
+        if (element?.DataContext is not LogEntry entry) return;
 
-        dynamic entry = element.DataContext;
         string logText = entry.Text;
 
         var target = LogParser.ParseLogLine(logText);
@@ -1554,7 +1636,7 @@ public partial class AngelScriptEditorView : UserControl
                 OpenFile(target.FilePath);
             }
 
-            Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
+            Dispatcher.InvokeAsync(() =>
             {
                 if (target.Line > 0 && target.Line <= CodeEditor.Document.LineCount)
                 {
@@ -1563,7 +1645,7 @@ public partial class AngelScriptEditorView : UserControl
                     CodeEditor.ScrollTo(target.Line, target.Column);
                     CodeEditor.Focus();
                 }
-            }));
+            }, DispatcherPriority.ContextIdle);
         }
     }
 

@@ -3,8 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:local="clr-namespace:CB2Toolkit.AddonEditor.Views"
-             xmlns:models="clr-namespace:CB2Toolkit.Core.Models.Settings;assembly=CB2Toolkit.Core"
              xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
              xmlns:models1="clr-namespace:CB2Toolkit.Core.Models;assembly=CB2Toolkit.Core"
              mc:Ignorable="d"
