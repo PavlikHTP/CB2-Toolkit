@@ -246,7 +246,7 @@
                         <TextBlock Text="TOOLS" HorizontalAlignment="Center" Foreground="#4B5563" FontFamily="Segoe UI" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
                     </Border>
                     <Border Grid.Row="1" Background="#16161A" CornerRadius="0,0,6,6" BorderBrush="#232329" BorderThickness="1">
-                        <ScrollViewer Padding="8">
+                        <ScrollViewer Padding="8" VerticalScrollBarVisibility="Hidden">
                             <StackPanel>
                                 <Button Content="🟦" ToolTip="Add Rect" Style="{StaticResource ToolboxButtonStyle}" Click="AddRect_Click" />
                                 <Button Content="⭕" ToolTip="Add Oval" Style="{StaticResource ToolboxButtonStyle}" Click="AddOval_Click" />
@@ -413,15 +413,45 @@
                                             </Border>
                                         </Grid>
 
-                                        <Thumb x:Name="ResizeGrip" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Margin="0,0,-5,-5" Visibility="Collapsed">
+                                        <Thumb x:Name="ResizeNW" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="NW" Margin="-5,-5,0,0" Visibility="Collapsed">
                                             <Thumb.Template>
                                                 <ControlTemplate TargetType="Thumb">
-                                                    <Border Background="#4D7CFE" CornerRadius="0" BorderBrush="White" BorderThickness="1"/>
+                                                    <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1"/>
                                                 </ControlTemplate>
                                             </Thumb.Template>
                                         </Thumb>
+                                        <Thumb x:Name="ResizeNE" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="NE" Margin="0,-5,-5,0" Visibility="Collapsed">
+                                            <Thumb.Template>
+                                                <ControlTemplate TargetType="Thumb">
+                                                    <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1"/>
+                                                </ControlTemplate>
+                                            </Thumb.Template>
+                                        </Thumb>
+                                        <Thumb x:Name="ResizeSW" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Bottom" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="SW" Margin="-5,0,0,-5" Visibility="Collapsed">
+                                            <Thumb.Template>
+                                                <ControlTemplate TargetType="Thumb">
+                                                    <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1"/>
+                                                </ControlTemplate>
+                                            </Thumb.Template>
+                                        </Thumb>
+                                        <Thumb x:Name="ResizeSE" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="SE" Margin="0,0,-5,-5" Visibility="Collapsed">
+                                            <Thumb.Template>
+                                                <ControlTemplate TargetType="Thumb">
+                                                    <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1"/>
+                                                </ControlTemplate>
+                                            </Thumb.Template>
+                                        </Thumb>
+
                                     </Grid>
                                     <DataTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="BoundingBox" Property="Visibility" Value="Visible" />
+                                            <Setter TargetName="ResizeNW" Property="Visibility" Value="Visible" />
+                                            <Setter TargetName="ResizeNE" Property="Visibility" Value="Visible" />
+                                            <Setter TargetName="ResizeSW" Property="Visibility" Value="Visible" />
+                                            <Setter TargetName="ResizeSE" Property="Visibility" Value="Visible" />
+                                        </Trigger>
+
                                         <DataTrigger Binding="{Binding Type}" Value="Rect">
                                             <Setter TargetName="RectVisual" Property="Visibility" Value="Visible" />
                                         </DataTrigger>
@@ -430,8 +460,10 @@
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding Type}" Value="Text">
                                             <Setter TargetName="TextVisual" Property="Visibility" Value="Visible" />
-                                            <Setter TargetName="ResizeGrip" Property="Opacity" Value="0" />
-                                            <Setter TargetName="ResizeGrip" Property="IsEnabled" Value="False" />
+                                            <Setter TargetName="ResizeNW" Property="Visibility" Value="Collapsed" />
+                                            <Setter TargetName="ResizeNE" Property="Visibility" Value="Collapsed" />
+                                            <Setter TargetName="ResizeSW" Property="Visibility" Value="Collapsed" />
+                                            <Setter TargetName="ResizeSE" Property="Visibility" Value="Collapsed" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding Type}" Value="Image">
                                             <Setter TargetName="ImageVisual" Property="Visibility" Value="Visible" />
@@ -439,11 +471,6 @@
                                         <DataTrigger Binding="{Binding Type}" Value="ProgressBar">
                                             <Setter TargetName="ProgressVisual" Property="Visibility" Value="Visible" />
                                         </DataTrigger>
-                                        
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="BoundingBox" Property="Visibility" Value="Visible" />
-                                            <Setter TargetName="ResizeGrip" Property="Visibility" Value="Visible" />
-                                        </Trigger>
                                     </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
