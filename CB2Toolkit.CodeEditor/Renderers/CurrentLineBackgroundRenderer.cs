@@ -8,7 +8,15 @@ namespace CB2Toolkit.CodeEditor.Renderers;
 public class CurrentLineBackgroundRenderer : IBackgroundRenderer
 {
     private readonly TextEditor _editor;
-    
+
+    private static readonly Brush CachedBrush;
+
+    static CurrentLineBackgroundRenderer()
+    {
+        CachedBrush = new SolidColorBrush(Color.FromArgb(12, 255, 255, 255));
+        CachedBrush.Freeze();
+    }
+
     public CurrentLineBackgroundRenderer(TextEditor editor)
     {
         _editor = editor;
@@ -27,11 +35,8 @@ public class CurrentLineBackgroundRenderer : IBackgroundRenderer
         {
             double y = visualLine.GetVisualPosition(0, VisualYPosition.TextTop).Y - textView.VerticalOffset;
             double height = visualLine.Height;
-            
-            var brush = new SolidColorBrush(Color.FromArgb(12, 255, 255, 255));
-            brush.Freeze();
-            
-            drawingContext.DrawRectangle(brush, null, new Rect(0, y, textView.ActualWidth, height));
+
+            drawingContext.DrawRectangle(CachedBrush, null, new Rect(0, y, textView.ActualWidth, height));
         }
     }
 }

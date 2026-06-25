@@ -10,8 +10,8 @@ public static class LogParser
     {
         if (string.IsNullOrEmpty(logText)) return null;
 
-        var fileMatch = Regex.Match(logText, @"^\[(.*?)\]");
-        var lineMatch = Regex.Match(logText, @"\((\d+)(?:,\s*(\d+))?\)");
+        var fileMatch = RegexPatterns.LogFilePath.Match(logText);
+        var lineMatch = RegexPatterns.LogLineCol.Match(logText);
 
         if (!lineMatch.Success) return null;
 

@@ -15,6 +15,7 @@ using CB2Toolkit.Core.Models;
 using CB2Toolkit.Core.Models.Enums;
 using CB2Toolkit.Core.Models.Settings;
 using CB2Toolkit.Core.Services;
+using CB2Toolkit.Core.Utilities;
 using Microsoft.Win32;
 
 namespace CB2Toolkit.UIEditor.Views;
@@ -112,7 +113,7 @@ public partial class UIEditorView : UserControl
             string line = rawLine.Trim();
             if (string.IsNullOrEmpty(line)) continue;
 
-            var createMatch = Regex.Match(line, @"^(?<name>\w+)\[idx\]\s*=\s*gfx\.Create(?<type>\w+)\((?<args>.*)\);");
+            var createMatch = RegexPatterns.UiElementCreate.Match(line);
             if (createMatch.Success)
             {
                 string name = createMatch.Groups["name"].Value;
@@ -155,7 +156,7 @@ public partial class UIEditorView : UserControl
                 continue;
             }
 
-            var propMatch = Regex.Match(line, @"^(?<name>\w+)\[idx\]\.(?<method>SetColor|SetOpacity|SetScale|SetCallback)\((?<args>.*)\);");
+            var propMatch = RegexPatterns.UiPropertySet.Match(line);
             if (propMatch.Success)
             {
                 string name = propMatch.Groups["name"].Value;

@@ -7,6 +7,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CB2Toolkit.CodeEditor.Models.Enums;
+using CB2Toolkit.CodeEditor.Utils;
 using CB2Toolkit.CodeEditor.Views;
 using CB2Toolkit.Core;
 using CB2Toolkit.Core.Models;
@@ -15,7 +16,7 @@ using CB2Toolkit.Core.Utilities;
 
 namespace CB2Toolkit.AddonEditor.Views;
 
-public partial class AddonEditorView : UserControl
+public partial class AddonEditorView : LifecycleUserControl
 {
     private string? _currentFilePath;
     private string? _projectFolderPath;
@@ -23,24 +24,48 @@ public partial class AddonEditorView : UserControl
     public AddonEditorView()
     {
         InitializeComponent();
-
-        LoggerService.Instance.OnLogAdded += entry => Dispatcher.Invoke(() =>
-        {
-            ConsoleOutput.Items.Add(entry);
-            if (AutoscrollToggle.IsChecked == true)
-            {
-                ConsoleScrollViewer.ScrollToBottom();
-            }
-        });
-
-        LoggerService.Instance.OnLogCleared += () => Dispatcher.Invoke(() => ConsoleOutput.Items.Clear());
-
-        ProjectService.Instance.OnTreeStructureChanged += () => Dispatcher.Invoke(LoadProjectTree);
-        ProjectService.Instance.OnFileChangedExternally += path => Dispatcher.Invoke(() => OnFileChanged(path));
-        ProjectService.Instance.OnActiveFileDeletedExternally += path => Dispatcher.Invoke(() => OnFileDeleted(path));
-        ProjectService.Instance.OnActiveFileRenamedExternally += (oldPath, newPath) =>
-            Dispatcher.Invoke(() => OnFileRenamed(oldPath, newPath));
     }
+
+    protected override Task OnViewLoadedAsync()
+    {
+        LoggerService.Instance.OnLogAdded += LoggerService_OnLogAdded;
+        LoggerService.Instance.OnLogCleared += LoggerService_OnLogCleared;
+
+        ProjectService.Instance.OnTreeStructureChanged += ProjectService_TreeStructureChanged;
+        ProjectService.Instance.OnFileChangedExternally += ProjectService_FileChangedExternally;
+        ProjectService.Instance.OnActiveFileDeletedExternally += ProjectService_ActiveFileDeletedExternally;
+        ProjectService.Instance.OnActiveFileRenamedExternally += ProjectService_ActiveFileRenamedExternally;
+
+        return Task.CompletedTask;
+    }
+
+    protected override void OnViewUnloaded()
+    {
+        LoggerService.Instance.OnLogAdded -= LoggerService_OnLogAdded;
+        LoggerService.Instance.OnLogCleared -= LoggerService_OnLogCleared;
+
+        ProjectService.Instance.OnTreeStructureChanged -= ProjectService_TreeStructureChanged;
+        ProjectService.Instance.OnFileChangedExternally -= ProjectService_FileChangedExternally;
+        ProjectService.Instance.OnActiveFileDeletedExternally -= ProjectService_ActiveFileDeletedExternally;
+        ProjectService.Instance.OnActiveFileRenamedExternally -= ProjectService_ActiveFileRenamedExternally;
+    }
+
+    private void LoggerService_OnLogAdded(object entry) => Dispatcher.Invoke(() =>
+    {
+        ConsoleOutput.Items.Add(entry);
+        if (AutoscrollToggle.IsChecked == true)
+        {
+            ConsoleScrollViewer.ScrollToBottom();
+        }
+    });
+
+    private void LoggerService_OnLogCleared() => Dispatcher.Invoke(() => ConsoleOutput.Items.Clear());
+
+    private void ProjectService_TreeStructureChanged() => Dispatcher.Invoke(LoadProjectTree);
+    private void ProjectService_FileChangedExternally(string path) => Dispatcher.Invoke(() => OnFileChanged(path));
+    private void ProjectService_ActiveFileDeletedExternally(string path) => Dispatcher.Invoke(() => OnFileDeleted(path));
+    private void ProjectService_ActiveFileRenamedExternally(string oldPath, string newPath) =>
+        Dispatcher.Invoke(() => OnFileRenamed(oldPath, newPath));
 
     private string? ShowInputDialog(string title, string defaultText)
     {

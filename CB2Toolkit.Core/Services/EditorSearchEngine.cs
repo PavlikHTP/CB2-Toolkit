@@ -5,6 +5,7 @@ namespace CB2Toolkit.Core.Services;
 
 public class EditorSearchEngine
 {
+
     public List<GlobalSearchResult> RunGlobalSearch(string projectDir, string textToFind, bool regexEnabled, bool wholeWordEnabled, bool matchCaseEnabled, IEnumerable<string> supportedExtensions)
     {
         var results = new List<GlobalSearchResult>();
@@ -17,31 +18,57 @@ public class EditorSearchEngine
             pattern = @"\b" + pattern + @"\b";
         }
 
-        RegexOptions options = matchCaseEnabled ? RegexOptions.None : RegexOptions.IgnoreCase;
-        var extensions = supportedExtensions.Select(e => e.ToLowerInvariant()).ToList();
+        RegexOptions options = RegexOptions.Compiled | (matchCaseEnabled ? RegexOptions.None : RegexOptions.IgnoreCase);
+        var extensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var ext in supportedExtensions)
+        {
+            extensions.Add(ext);
+        }
 
         if (!Directory.Exists(projectDir))
             return results;
 
-        var files = Directory.GetFiles(projectDir, "*.*", SearchOption.AllDirectories)
-            .Where(f => extensions.Contains(Path.GetExtension(f).ToLowerInvariant()));
+        var regex = new Regex(pattern, options);
+
+        string[] files;
+        try
+        {
+            files = Directory.GetFiles(projectDir, "*.*", SearchOption.AllDirectories);
+        }
+        catch
+        {
+            return results;
+        }
 
         foreach (var file in files)
         {
-            string[] lines = File.ReadAllLines(file);
-            for (int i = 0; i < lines.Length; i++)
+            if (!extensions.Contains(Path.GetExtension(file)))
+                continue;
+
+            try
             {
-                if (Regex.IsMatch(lines[i], pattern, options))
+                using var reader = new StreamReader(file);
+                int lineNumber = 0;
+                string? line;
+                while ((line = reader.ReadLine()) != null)
                 {
-                    results.Add(new GlobalSearchResult
+                    lineNumber++;
+                    if (regex.IsMatch(line))
                     {
-                        FilePath = file,
-                        LineNumber = i + 1,
-                        LineText = lines[i].Trim()
-                    });
+                        results.Add(new GlobalSearchResult
+                        {
+                            FilePath = file,
+                            LineNumber = lineNumber,
+                            LineText = line.Trim()
+                        });
+                    }
                 }
             }
+            catch
+            {
+            }
         }
+
         return results;
     }
 
@@ -57,49 +84,59 @@ public class EditorSearchEngine
             pattern = @"\b" + pattern + @"\b";
         }
 
-        RegexOptions options = matchCaseEnabled ? RegexOptions.None : RegexOptions.IgnoreCase;
+        RegexOptions options = RegexOptions.Compiled | (matchCaseEnabled ? RegexOptions.None : RegexOptions.IgnoreCase);
 
         try
         {
-            var matches = Regex.Matches(docText, pattern, options);
-            if (matches.Count == 0)
-                return -1;
-
-            Match? targetMatch = null;
+            var regex = new Regex(pattern, options);
 
             if (!backward)
             {
                 int anchor = selectionStart + (selectionLength > 0 ? 1 : 0);
-                foreach (Match m in matches)
+                var match = regex.Match(docText, anchor);
+                if (!match.Success)
+                    match = regex.Match(docText);
+
+                if (match.Success)
                 {
-                    if (m.Index >= anchor)
-                    {
-                        targetMatch = m;
-                        break;
-                    }
+                    matchLength = match.Length;
+                    return match.Index;
                 }
-                if (targetMatch == null)
-                    targetMatch = matches[0];
             }
             else
             {
                 int anchor = selectionStart;
-                for (int i = matches.Count - 1; i >= 0; i--)
+                Match? targetMatch = null;
+
+                foreach (Match m in regex.Matches(docText))
                 {
-                    if (matches[i].Index < anchor)
+                    if (m.Index < anchor)
                     {
-                        targetMatch = matches[i];
+                        targetMatch = m;
+                    }
+                    else
+                    {
                         break;
                     }
                 }
-                if (targetMatch == null)
-                    targetMatch = matches[matches.Count - 1];
-            }
 
-            if (targetMatch != null)
-            {
-                matchLength = targetMatch.Length;
-                return targetMatch.Index;
+                if (targetMatch == null)
+                {
+                    var lastMatch = regex.Match(docText);
+                    if (lastMatch.Success)
+                    {
+                        foreach (Match m in regex.Matches(docText))
+                        {
+                            targetMatch = m;
+                        }
+                    }
+                }
+
+                if (targetMatch != null)
+                {
+                    matchLength = targetMatch.Length;
+                    return targetMatch.Index;
+                }
             }
         }
         catch

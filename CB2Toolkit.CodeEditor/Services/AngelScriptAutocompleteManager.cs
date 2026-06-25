@@ -19,14 +19,6 @@ namespace CB2Toolkit.CodeEditor.Services;
 
 public class AngelScriptAutocompleteManager : IDisposable
 {
-    private static readonly Regex WordTagRegex = new(@"<Word>(.*?)</Word>", RegexOptions.Compiled);
-    private static readonly Regex IncludeLineRegex = new(@"^\s*#include\s*""$", RegexOptions.Compiled);
-    private static readonly Regex FunctionRegex = new(@"\b[A-Za-z_]\w*(?=\s*\()", RegexOptions.Compiled);
-    private static readonly Regex ClassDeclarationRegex = new(@"(?<=\b(class|interface|enum)\s+)[A-Za-z_]\w*", RegexOptions.Compiled);
-    private static readonly Regex WordBoundaryRegex = new(@"\b[A-Za-z_]\w*\b", RegexOptions.Compiled);
-    private static readonly Regex ClassFieldRegex = new(@"\b([A-Za-z_]\w*)\s+([^;]+);", RegexOptions.Compiled);
-    private static readonly Regex CleanTextRegex = new(@"(//[^\r\n]*)|(/\*[\s\S]*?\*/)|(""(?:\\.|[^""\\])*"")|('(?:\\.|[^'\\])*')", RegexOptions.Compiled);
-
     private static readonly SolidColorBrush DarkBackground = new((Color)ColorConverter.ConvertFromString("#1E1E1E"));
     private static readonly SolidColorBrush DarkBorder = new((Color)ColorConverter.ConvertFromString("#3E3E42"));
     private static readonly SolidColorBrush LightForeground = new((Color)ColorConverter.ConvertFromString("#D4D4D4"));
@@ -68,7 +60,7 @@ public class AngelScriptAutocompleteManager : IDisposable
     {
         _baseKeywords.Clear();
         string xshd = AngelScriptSyntax.GetFallbackXshd();
-        foreach (Match match in WordTagRegex.Matches(xshd))
+        foreach (Match match in RegexPatterns.WordTag.Matches(xshd))
         {
             string word = match.Groups[1].Value;
             _baseKeywords.Add(new AngelScriptCompletionData(word, CompletionType.Keyword));
@@ -168,9 +160,9 @@ public class AngelScriptAutocompleteManager : IDisposable
         var suggestions = new List<AngelScriptCompletionData>();
         var addedTexts = new HashSet<string>(StringComparer.Ordinal);
 
-        string cleanText = CleanTextRegex.Replace(docText, " ");
+        string cleanText = RegexPatterns.CleanText.Replace(docText, " ");
 
-        foreach (Match match in FunctionRegex.Matches(cleanText))
+        foreach (Match match in RegexPatterns.FunctionName.Matches(cleanText))
         {
             string func = match.Value;
             if (!addedTexts.Contains(func))
@@ -180,7 +172,7 @@ public class AngelScriptAutocompleteManager : IDisposable
             }
         }
 
-        foreach (Match match in ClassDeclarationRegex.Matches(cleanText))
+        foreach (Match match in RegexPatterns.ClassDeclaration.Matches(cleanText))
         {
             string cls = match.Value;
             if (!addedTexts.Contains(cls))
@@ -190,7 +182,7 @@ public class AngelScriptAutocompleteManager : IDisposable
             }
         }
 
-        foreach (Match match in WordBoundaryRegex.Matches(cleanText))
+        foreach (Match match in RegexPatterns.WordBoundary.Matches(cleanText))
         {
             string word = match.Value;
             if (!addedTexts.Contains(word) && word.Length > 2)
@@ -220,7 +212,7 @@ public class AngelScriptAutocompleteManager : IDisposable
                 var line = _editor.Document.GetLineByOffset(offset);
                 string lineText = _editor.Document.GetText(line.Offset, offset - line.Offset);
 
-                if (IncludeLineRegex.IsMatch(lineText))
+                if (RegexPatterns.IncludeIncomplete.IsMatch(lineText))
                 {
                     TriggerIncludeAutocomplete(offset);
                     return;
@@ -512,17 +504,15 @@ public class AngelScriptAutocompleteManager : IDisposable
 
     private string? ResolveVariableType(string varName, string textBeforeCaret, string textAfterCaret)
     {
-        string pattern = @"\b([A-Za-z_]\w*)\s*@?\s*" + Regex.Escape(varName) + @"\b";
         string[] primitives = { "if", "for", "while", "return", "new", "void", "int", "float", "double", "bool", "uint", "string" };
-
-        var matchesBefore = Regex.Matches(textBeforeCaret, pattern);
+        var matchesBefore = RegexPatterns.VariableTypeDeclaration(varName).Matches(textBeforeCaret);
         if (matchesBefore.Count > 0)
         {
             string typeName = matchesBefore[^1].Groups[1].Value;
             if (!primitives.Contains(typeName)) return typeName;
         }
 
-        var matchesAfter = Regex.Matches(textAfterCaret, pattern);
+        var matchesAfter = RegexPatterns.VariableTypeDeclaration(varName).Matches(textAfterCaret);
         if (matchesAfter.Count > 0)
         {
             string typeName = matchesAfter[0].Groups[1].Value;
@@ -537,8 +527,7 @@ public class AngelScriptAutocompleteManager : IDisposable
         var members = new List<AngelScriptCompletionData>();
         string fullText = _editor.Text;
 
-        string classPattern = @"\bclass\s+" + Regex.Escape(typeName) + @"\s*\{";
-        var match = Regex.Match(fullText, classPattern);
+        var match = RegexPatterns.ClassBodySearch(typeName).Match(fullText);
         if (!match.Success) return members;
 
         int startPos = match.Index + match.Length;
@@ -555,9 +544,9 @@ public class AngelScriptAutocompleteManager : IDisposable
         if (braceCount > 0) return members;
 
         string classBody = fullText.Substring(startPos, endPos - startPos - 1);
-        string cleanClassBody = CleanTextRegex.Replace(classBody, " ");
+        string cleanClassBody = RegexPatterns.CleanText.Replace(classBody, " ");
 
-        foreach (Match m in FunctionRegex.Matches(cleanClassBody))
+        foreach (Match m in RegexPatterns.FunctionName.Matches(cleanClassBody))
         {
             string methodName = m.Value;
             if (methodName == "if" || methodName == "while" || methodName == "for" || methodName == "switch") continue;
@@ -568,7 +557,7 @@ public class AngelScriptAutocompleteManager : IDisposable
             }
         }
 
-        var fieldMatches = ClassFieldRegex.Matches(cleanClassBody);
+        var fieldMatches = RegexPatterns.ClassField.Matches(cleanClassBody);
         foreach (Match m in fieldMatches)
         {
             string typeStr = m.Groups[1].Value;
@@ -579,7 +568,7 @@ public class AngelScriptAutocompleteManager : IDisposable
             string[] parts = fieldsPart.Split(',');
             foreach (var part in parts)
             {
-                var nameMatch = Regex.Match(part, @"\b[A-Za-z_]\w*\b");
+                var nameMatch = RegexPatterns.WordBoundary.Match(part);
                 if (nameMatch.Success)
                 {
                     string fieldName = nameMatch.Value;

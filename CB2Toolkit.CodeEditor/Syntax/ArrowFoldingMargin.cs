@@ -11,6 +11,18 @@ public class ArrowFoldingMargin : AbstractMargin
 {
     private readonly FoldingManager _manager;
 
+    private static readonly Brush CachedFoldedBrush;
+    private static readonly Brush CachedUnfoldedBrush;
+
+    static ArrowFoldingMargin()
+    {
+        CachedFoldedBrush = new SolidColorBrush(Color.FromRgb(206, 126, 59));
+        CachedFoldedBrush.Freeze();
+
+        CachedUnfoldedBrush = new SolidColorBrush(Color.FromRgb(160, 160, 160));
+        CachedUnfoldedBrush.Freeze();
+    }
+
     public ArrowFoldingMargin(FoldingManager manager)
     {
         _manager = manager;
@@ -76,8 +88,7 @@ public class ArrowFoldingMargin : AbstractMargin
                     double centerY = y + height / 2;
                     double centerX = 8;
 
-                    var brush = new SolidColorBrush(folding.IsFolded ? Color.FromRgb(206, 126, 59) : Color.FromRgb(160, 160, 160));
-                    brush.Freeze();
+                    Brush brush = folding.IsFolded ? CachedFoldedBrush : CachedUnfoldedBrush;
 
                     var geometry = new StreamGeometry();
                     using (var ctx = geometry.Open())

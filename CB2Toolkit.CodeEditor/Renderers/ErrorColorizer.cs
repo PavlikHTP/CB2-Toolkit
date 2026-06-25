@@ -8,6 +8,26 @@ namespace CB2Toolkit.CodeEditor.Renderers;
 
 public class ErrorColorizer : DocumentColorizingTransformer
 {
+    private static readonly TextDecorationCollection CachedUnderlineDecorations;
+
+    static ErrorColorizer()
+    {
+        var underline = new TextDecoration
+        {
+            Location = TextDecorationLocation.Underline,
+            Pen = new Pen(Brushes.Red, 1.0)
+            {
+                DashStyle = DashStyles.Dot
+            },
+            PenOffset = 2.5,
+            PenOffsetUnit = TextDecorationUnit.Pixel
+        };
+
+        var decorations = new TextDecorationCollection { underline };
+        decorations.Freeze();
+        CachedUnderlineDecorations = decorations;
+    }
+
     public List<SyntaxError> Errors { get; set; } = new List<SyntaxError>();
 
     protected override void ColorizeLine(DocumentLine line)
@@ -28,18 +48,7 @@ public class ErrorColorizer : DocumentColorizingTransformer
 
             ChangeLinePart(start, end, element =>
             {
-                var underline = new TextDecoration
-                {
-                    Location = TextDecorationLocation.Underline,
-                    Pen = new Pen(Brushes.Red, 1.0) 
-                    { 
-                        DashStyle = DashStyles.Dot 
-                    },
-                    PenOffset = 2.5,
-                    PenOffsetUnit = TextDecorationUnit.Pixel
-                };
-                
-                element.TextRunProperties.SetTextDecorations(new TextDecorationCollection { underline });
+                element.TextRunProperties.SetTextDecorations(CachedUnderlineDecorations);
             });
         }
     }

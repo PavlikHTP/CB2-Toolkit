@@ -1,10 +1,11 @@
-<UserControl x:Class="CB2Toolkit.AddonEditor.Views.AddonEditorView"
+<utils:LifecycleUserControl x:Class="CB2Toolkit.AddonEditor.Views.AddonEditorView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
              xmlns:models1="clr-namespace:CB2Toolkit.Core.Models;assembly=CB2Toolkit.Core"
+             xmlns:utils="clr-namespace:CB2Toolkit.CodeEditor.Utils;assembly=CB2Toolkit.CodeEditor"
              mc:Ignorable="d"
              d:DesignHeight="700" d:DesignWidth="1100">
 
@@ -739,15 +740,16 @@
                         </DockPanel>
                     </Border>
 
-                    <ScrollViewer Name="ConsoleScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl Name="ConsoleOutput" Padding="12">
+                    <ScrollViewer Name="ConsoleScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" CanContentScroll="True">
+                        <ItemsControl Name="ConsoleOutput" Padding="12"
+                                      VirtualizingStackPanel.IsVirtualizing="True"
+                                      VirtualizingPanel.ScrollUnit="Pixel"
+                                      VirtualizingPanel.VirtualizationMode="Recycling">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBox Text="{Binding Text, Mode=OneWay}" Foreground="{Binding Color}"
-                                             FontFamily="Consolas"
-                                             FontSize="13" TextWrapping="Wrap" Margin="0,0,0,2"
-                                             IsReadOnly="True" Background="Transparent" BorderThickness="0"
-                                             SelectionBrush="#3D4D7CFE" CaretBrush="Transparent" />
+                                    <TextBlock Text="{Binding Text, Mode=OneWay}" Foreground="{Binding Color}"
+                                               FontFamily="Consolas"
+                                               FontSize="13" TextWrapping="Wrap" Margin="0,0,0,2" />
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -773,4 +775,4 @@
             </Border>
         </Grid>
     </Grid>
-</UserControl>
+</utils:LifecycleUserControl>

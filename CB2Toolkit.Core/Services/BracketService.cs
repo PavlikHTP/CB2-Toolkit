@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using CB2Toolkit.Core.Utilities;
 using ICSharpCode.AvalonEdit;
 using ICSharpCode.AvalonEdit.Document;
 
@@ -24,7 +25,7 @@ public class BracketService
         {
             var line = doc.GetLineByOffset(offset);
             string lineText = doc.GetText(line.Offset, offset - line.Offset);
-            string indentation = Regex.Match(lineText, @"^\s*").Value;
+            string indentation = RegexPatterns.LeadingWhitespace.Match(lineText).Value;
 
             bool isNewLine = string.IsNullOrWhiteSpace(lineText.Replace("{", ""));
 

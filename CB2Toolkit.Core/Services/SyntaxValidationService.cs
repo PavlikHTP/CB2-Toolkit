@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using CB2Toolkit.Core.Models;
+using CB2Toolkit.Core.Utilities;
 
 namespace CB2Toolkit.Core.Services;
 
@@ -161,11 +162,11 @@ public class SyntaxValidationService
         string trimmed = maskedLine.Trim();
         if (trimmed.StartsWith("if") || trimmed.StartsWith("for") || trimmed.StartsWith("while") || trimmed.StartsWith("switch") || trimmed.StartsWith("include") || trimmed.StartsWith("#")) return;
 
-        var matches = Regex.Matches(maskedLine, @"\(([^)]+)\)");
+        var matches = RegexPatterns.ArgumentsGroup.Matches(maskedLine);
         foreach (Match match in matches)
         {
             string content = match.Groups[1].Value;
-            if (Regex.IsMatch(content, @"\b\w+\s+\w+\s+\w+\b") || Regex.IsMatch(content, @"\b\w+\s+\w+(?!\s*,\s*)\s+\w+\s+\w+\b"))
+            if (RegexPatterns.MissingComma3Words.IsMatch(content) || RegexPatterns.MissingComma4Words.IsMatch(content))
             {
                 errors.Add(new SyntaxError
                 {
