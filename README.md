@@ -6,7 +6,7 @@ A multi-functional toolkit for developing, building, and managing modifications.
 
 * **AngelScript Editor** - A specialized editor for writing and editing game scripts.
 * **Addon Editor** - A dedicated tool for creating and packaging addons.
-* **UI Editor** - A module for designing and configuring user interfaces *(under development)*.
+* **UI Editor** - A module for designing and configuring user interfaces.
 
 ## 💻 System Requirements
 
