@@ -48,7 +48,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
     private readonly HashSet<string> _approvedWarningFiles = new(StringComparer.OrdinalIgnoreCase);
 
     private FoldingManager? _foldingManager;
-    private EditorHistoryManager _historyManager;
+    private TextHistoryManager _historyManager;
     private BraceFoldingStrategy? _foldingStrategy;
     private DispatcherTimer _foldingTimer;
     private ErrorColorizer _errorColorizer;
@@ -84,7 +84,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         LoggerService.Instance.OnLogAdded += LoggerService_OnLogAdded;
         LoggerService.Instance.OnLogCleared += LoggerService_OnLogCleared;
 
-        _historyManager = new EditorHistoryManager(CodeEditor);
+        _historyManager = new TextHistoryManager(CodeEditor);
         var settings = SettingsService.Instance.Current;
         CompilePathInput.Text = settings.CustomAngelScriptCompilePath;
 
@@ -129,10 +129,10 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         Dispatcher.InvokeAsync(() => OnFileRenamed(oldPath, newPath));
 
     private void TerminalService_OutputReceived(string text) =>
-        Dispatcher.InvokeAsync(() => LoggerService.Instance.Log(text, "#D4D4D4"));
+        Dispatcher.InvokeAsync(() => LoggerService.Instance.Log(text, LogType.Info, "#D4D4D4"));
 
     private void TerminalService_ErrorReceived(string text) =>
-        Dispatcher.InvokeAsync(() => LoggerService.Instance.Log(text, "#CD5C5C"));
+        Dispatcher.InvokeAsync(() => LoggerService.Instance.LogError(text));
 
     private void LoggerService_OnLogAdded(object entry) => Dispatcher.InvokeAsync(() => ConsoleOutput.Items.Add(entry));
     private void LoggerService_OnLogCleared() => Dispatcher.InvokeAsync(() => ConsoleOutput.Items.Clear());
@@ -162,7 +162,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
 
         HotkeySettings hotkeys = SettingsService.Instance.Current.Hotkeys;
 
-        if (HotkeyMatcher.IsMatch(e, hotkeys.RenameFile, hotkeys.RenameFileModifiers))
+        if (HotkeyMatcher.IsMatch(e, hotkeys.RenameKey, hotkeys.RenameModifiers))
         {
             string? newName = ShowInputDialog("Rename", node.Key);
             if (string.IsNullOrEmpty(newName) || newName == node.Key) return;
@@ -181,7 +181,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
                 LoggerService.Instance.LogError($"[Rename Error] {ex.Message}");
             }
         }
-        else if (HotkeyMatcher.IsMatch(e, hotkeys.DeleteFile, hotkeys.DeleteFileModifiers))
+        else if (HotkeyMatcher.IsMatch(e, hotkeys.DeleteKey, hotkeys.DeleteModifiers))
         {
             var result = ModernMessageBox.Show(
                 Window.GetWindow(this),
@@ -269,7 +269,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
     private void View_PreviewKeyDown(object sender, KeyEventArgs e) => HandleInputEvent(e);
     private void View_PreviewMouseDown(object sender, MouseButtonEventArgs e) => HandleInputEvent(e);
 
-    private void HandleInputEvent(RoutedEventArgs e)
+    protected void HandleInputEvent(RoutedEventArgs e)
     {
         var hotkeys = SettingsService.Instance.Current.Hotkeys;
 
@@ -280,7 +280,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         if (TryTrigger(e, hotkeys.GlobalSearchKey, hotkeys.GlobalSearchModifiers, ShowGlobalSearch)) return;
         if (TryTrigger(e, hotkeys.SaveFileKey, hotkeys.SaveFileModifiers, SaveCurrentFile)) return;
         if (TryTrigger(e, hotkeys.SearchPanelKey, hotkeys.SearchPanelModifiers, ShowSearchPanel)) return;
-        if (TryTrigger(e, hotkeys.DuplicateLineKey, hotkeys.DuplicateLineModifiers,
+        if (TryTrigger(e, hotkeys.DuplicateKey, hotkeys.DuplicateModifiers,
                 () => CodeEditor.DuplicateCurrentLine())) return;
         if (TryTrigger(e, hotkeys.SaveAllKey, hotkeys.SaveAllModifiers, SaveAllFiles)) return;
         if (TryTrigger(e, hotkeys.RunCompilerKey, hotkeys.RunCompilerModifiers, RunCompiler)) return;
@@ -572,7 +572,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         }
         else
         {
-            System.StringComparison comp = matchCase ? System.StringComparison.Ordinal : System.StringComparison.OrdinalIgnoreCase;
+            StringComparison comp = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
             int index = 0;
             while ((index = text.IndexOf(textToFind, index, comp)) != -1)
             {
@@ -938,7 +938,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
 
             foreach (var entry in result)
             {
-                LoggerService.Instance.Log(entry.Text, entry.Color);
+                LoggerService.Instance.Log(entry.Text, entry.Type, entry.Color);
             }
 
             if (AutoscrollToggle.IsChecked == true)
@@ -1190,7 +1190,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
 
             TerminalInput.Text = string.Empty;
 
-            LoggerService.Instance.Log($"> {command}", "#808080");
+            LoggerService.Instance.Log($"> {command}", LogType.Info, "#808080");
             if (AutoscrollToggle.IsChecked == true) ScrollConsoleToBottom();
 
             string workDir = ProjectService.Instance.CurrentFolderPath ?? AppDomain.CurrentDomain.BaseDirectory;

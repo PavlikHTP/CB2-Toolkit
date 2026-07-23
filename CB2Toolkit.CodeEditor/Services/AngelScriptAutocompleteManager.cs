@@ -36,7 +36,6 @@ public class AngelScriptAutocompleteManager : IDisposable
     private System.Windows.Controls.Primitives.Popup? _signaturePopup;
     private TextBlock? _signatureTextBlock;
     private int _signatureStartOffset = -1;
-    private string? _signatureFunctionText;
     private List<string> _signatureParameters = new();
     private string _signaturePrefix = string.Empty;
 
@@ -371,6 +370,7 @@ public class AngelScriptAutocompleteManager : IDisposable
         }
         else
         {
+            
             filtered = GetContextualSuggestions(currentWord, start);
         }
 
@@ -379,12 +379,11 @@ public class AngelScriptAutocompleteManager : IDisposable
             _completionWindow.Close();
             return;
         }
-
-        var data = _completionWindow.CompletionList.CompletionData;
-        data.Clear();
+        
+        _completionWindow.CompletionList.CompletionData.Clear();
         foreach (var item in filtered)
         {
-            data.Add(item);
+            _completionWindow.CompletionList.CompletionData.Add(item);
         }
 
         _completionWindow.CompletionList.SelectItem(currentWord);
@@ -781,7 +780,6 @@ public class AngelScriptAutocompleteManager : IDisposable
         if (openParen == -1 || closeParen == -1 || closeParen <= openParen) return;
 
         _signatureStartOffset = caretOffset;
-        _signatureFunctionText = matchSignature;
         _signaturePrefix = matchSignature.Substring(0, openParen + 1);
 
         string paramContent = matchSignature.Substring(openParen + 1, closeParen - openParen - 1);
@@ -898,7 +896,6 @@ public class AngelScriptAutocompleteManager : IDisposable
     private void CloseSignatureHelp()
     {
         _signatureStartOffset = -1;
-        _signatureFunctionText = null;
         _signatureParameters.Clear();
         _signaturePrefix = string.Empty;
 

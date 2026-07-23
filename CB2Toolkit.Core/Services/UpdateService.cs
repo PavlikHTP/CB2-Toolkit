@@ -14,7 +14,7 @@ public class UpdateService
     private UpdateService()
     {
         _httpClient = new HttpClient();
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("CB2Toolkit-Updater");
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd($"{AppMetadata.Title}-Updater");
     }
 
     public async Task CheckForUpdatesAsync()

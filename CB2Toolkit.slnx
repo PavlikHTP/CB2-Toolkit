@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="CB2Toolkit.AddonEditor/CB2Toolkit.AddonEditor.csproj" />
+  <Project Path="CB2Toolkit.App/CB2Toolkit.App.csproj" />
+  <Project Path="CB2Toolkit.CodeEditor/CB2Toolkit.CodeEditor.csproj" />
+  <Project Path="CB2Toolkit.Core/CB2Toolkit.Core.csproj" />
+  <Project Path="CB2Toolkit.UIEditor/CB2Toolkit.UIEditor.csproj" />
+</Solution>

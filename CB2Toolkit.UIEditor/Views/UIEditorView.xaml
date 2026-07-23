@@ -1,16 +1,123 @@
-<UserControl x:Class="CB2Toolkit.UIEditor.Views.UIEditorView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:views="clr-namespace:CB2Toolkit.UIEditor.Views"
-             mc:Ignorable="d"
-             d:DesignHeight="750" d:DesignWidth="1200"
-             PreviewKeyDown="View_PreviewKeyDown"
-             Language="en-US">
+<utils1:LifecycleUserControl x:Class="CB2Toolkit.UIEditor.Views.UIEditorView"
+                             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                             xmlns:utils="clr-namespace:CB2Toolkit.UIEditor.Utils"
+                             xmlns:utils1="clr-namespace:CB2Toolkit.CodeEditor.Utils;assembly=CB2Toolkit.CodeEditor"
+                             mc:Ignorable="d"
+                             d:DesignHeight="750" d:DesignWidth="1200"
+                             PreviewKeyDown="View_PreviewKeyDown"
+                             PreviewMouseDown="View_PreviewMouseDown">
     <UserControl.Resources>
-        <views:NormalizedToAbsoluteConverter x:Key="NormConverter" />
-        <views:RgbToBrushConverter x:Key="RgbConverter" />
+        <utils:NormalizedToAbsoluteConverter x:Key="NormConverter" />
+        <utils:RgbToBrushConverter x:Key="RgbConverter" />
+        <utils:PathToAbsoluteImageConverter x:Key="PathConverter" />
+
+        <Style x:Key="AnimatedBoundingBoxStyle" TargetType="Border">
+            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="BorderBrush">
+                <Setter.Value>
+                    <SolidColorBrush Color="#4D7CFE" Opacity="1.0" />
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="Visibility" Value="Visible">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard x:Name="OpacityPulseStoryboard">
+                            <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                <DoubleAnimation Storyboard.TargetProperty="(Border.BorderBrush).(Brush.Opacity)"
+                                                 From="1.0" To="0.2" Duration="0:0:1.2">
+                                    <DoubleAnimation.EasingFunction>
+                                        <QuadraticEase EasingMode="EaseInOut" />
+                                    </DoubleAnimation.EasingFunction>
+                                </DoubleAnimation>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <RemoveStoryboard BeginStoryboardName="OpacityPulseStoryboard" />
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ModernExpanderStyle" TargetType="Expander">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Expander">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition x:Name="ContentRow" Height="0" />
+                            </Grid.RowDefinitions>
+                            <Border x:Name="Border" Grid.Row="0" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <ToggleButton x:Name="HeaderButton" Grid.Column="0" Grid.ColumnSpan="2"
+                                                  IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                                  Background="Transparent" BorderThickness="0" Padding="0">
+                                        <ToggleButton.Template>
+                                            <ControlTemplate TargetType="ToggleButton">
+                                                <Border Background="Transparent" Padding="4">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="20" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Path x:Name="Arrow" Grid.Column="0"
+                                                              Data="M 1,1.5 L 4.5,5 L 8,1.5" Stroke="#9CA3AF"
+                                                              StrokeThickness="2" HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"
+                                                              RenderTransformOrigin="0.5,0.5">
+                                                            <Path.RenderTransform>
+                                                                <RotateTransform Angle="-90" />
+                                                            </Path.RenderTransform>
+                                                        </Path>
+                                                        <ContentPresenter Grid.Column="1" VerticalAlignment="Center"
+                                                                          Content="{TemplateBinding Content}" />
+                                                    </Grid>
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="Arrow" Property="Stroke" Value="#4D7CFE" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="Arrow" Property="RenderTransform">
+                                                            <Setter.Value>
+                                                                <RotateTransform Angle="0" />
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </ToggleButton.Template>
+                                        <ContentPresenter Content="{TemplateBinding Header}"
+                                                          ContentTemplate="{TemplateBinding HeaderTemplate}"
+                                                          ContentTemplateSelector="{TemplateBinding HeaderTemplateSelector}" />
+                                    </ToggleButton>
+                                </Grid>
+                            </Border>
+                            <Border x:Name="ExpandSite" Grid.Row="1" Visibility="Collapsed"
+                                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                <ContentPresenter />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsExpanded" Value="true">
+                                <Setter TargetName="ContentRow" Property="Height" Value="*" />
+                                <Setter TargetName="ExpandSite" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <Style x:Key="ToolbarButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="#232329" />
@@ -24,7 +131,8 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="5"
+                                Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                     </ControlTemplate>
@@ -40,20 +148,27 @@
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="ToolboxButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
-            <Setter Property="Background" Value="#1A1A1E" />
-            <Setter Property="BorderBrush" Value="#2D2D35" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Margin" Value="0,0,0,8" />
-            <Setter Property="HorizontalContentAlignment" Value="Center" />
-            <Setter Property="Padding" Value="0,10" />
-            <Setter Property="FontSize" Value="20" />
+        <Style x:Key="ModernSliderStyle" TargetType="Slider">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid Background="Transparent" Height="20">
+                            <Border Background="#232329" Height="4" CornerRadius="2" VerticalAlignment="Center"
+                                    HorizontalAlignment="Stretch" />
+                            <Track x:Name="PART_Track">
+                                <Track.Thumb>
+                                    <Thumb Width="12" Height="12" VerticalAlignment="Center" Cursor="Hand">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Ellipse Fill="#4D7CFE" Width="12" Height="12" Stroke="#E2E2E9"
+                                                         StrokeThickness="1" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -71,8 +186,11 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
-                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" />
+                        <Border x:Name="border" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="false"
+                                          HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="true">
@@ -88,38 +206,102 @@
             </Setter>
         </Style>
 
+        <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="#232329" />
+            <Setter Property="Foreground" Value="#E2E2E9" />
+            <Setter Property="BorderBrush" Value="#3F3F46" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid TextElement.Foreground="{TemplateBinding Foreground}">
+                            <ToggleButton Name="ToggleButton"
+                                          Focusable="false"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Name="templateRoot" Background="#232329" BorderBrush="#3F3F46"
+                                                BorderThickness="1" CornerRadius="4" Padding="8,5">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="20" />
+                                                </Grid.ColumnDefinitions>
+                                                <ContentPresenter Grid.Column="0"
+                                                                  Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                  ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                  ContentTemplateSelector="{Binding ItemTemplateSelector, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+                                                                  VerticalAlignment="Center"
+                                                                  TextElement.Foreground="#E2E2E9" />
+                                                <Path Grid.Column="1" Data="M 0 0 L 4 4 L 8 0 Z" Fill="#9CA3AF"
+                                                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="templateRoot" Property="BorderBrush"
+                                                        Value="#52525B" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Border Name="DropDownBorder" Background="#1A1A1E" BorderBrush="#3F3F46"
+                                        BorderThickness="1" CornerRadius="4" MinWidth="{TemplateBinding ActualWidth}"
+                                        MaxHeight="200">
+                                    <ScrollViewer>
+                                        <StackPanel IsItemsHost="True"
+                                                    KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#E2E2E9" />
+            <Setter Property="Padding" Value="8,6" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="3"
+                                Padding="{TemplateBinding Padding}" Margin="2">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#232329" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#4D7CFE" />
+                                <Setter Property="Foreground" Value="#FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="ActionIconButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
             <Setter Property="Padding" Value="6,4" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="Background" Value="Transparent" />
-        </Style>
-
-        <Style x:Key="ActionToggleButtonStyle" TargetType="ToggleButton">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#9CA3AF" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="8,4" />
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ToggleButton">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#232329" />
-                    <Setter Property="Foreground" Value="#F3F4F6" />
-                </Trigger>
-                <Trigger Property="IsChecked" Value="True">
-                    <Setter Property="Background" Value="#1A1A22" />
-                    <Setter Property="Foreground" Value="#4D7CFE" />
-                </Trigger>
-            </Style.Triggers>
         </Style>
 
         <Style TargetType="ScrollBar">
@@ -158,9 +340,20 @@
                                 <RowDefinition Height="*" />
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
-                            <ScrollContentPresenter Grid.Column="0" Grid.Row="0" Margin="{TemplateBinding Padding}" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" CanContentScroll="{TemplateBinding CanContentScroll}" />
-                            <ScrollBar Name="PART_VerticalScrollBar" Grid.Column="1" Grid.Row="0" Value="{TemplateBinding VerticalOffset}" Maximum="{TemplateBinding ScrollableHeight}" ViewportSize="{TemplateBinding ViewportHeight}" Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" />
-                            <ScrollBar Name="PART_HorizontalScrollBar" Grid.Column="0" Grid.Row="1" Orientation="Horizontal" Value="{TemplateBinding HorizontalOffset}" Maximum="{TemplateBinding ScrollableWidth}" ViewportSize="{TemplateBinding ViewportWidth}" Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}" />
+                            <ScrollContentPresenter Grid.Column="0" Grid.Row="0" Margin="{TemplateBinding Padding}"
+                                                    Content="{TemplateBinding Content}"
+                                                    ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                    CanContentScroll="{TemplateBinding CanContentScroll}" />
+                            <ScrollBar Name="PART_VerticalScrollBar" Grid.Column="1" Grid.Row="0"
+                                       Value="{TemplateBinding VerticalOffset}"
+                                       Maximum="{TemplateBinding ScrollableHeight}"
+                                       ViewportSize="{TemplateBinding ViewportHeight}"
+                                       Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" />
+                            <ScrollBar Name="PART_HorizontalScrollBar" Grid.Column="0" Grid.Row="1"
+                                       Orientation="Horizontal" Value="{TemplateBinding HorizontalOffset}"
+                                       Maximum="{TemplateBinding ScrollableWidth}"
+                                       ViewportSize="{TemplateBinding ViewportWidth}"
+                                       Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}" />
                             <Rectangle Grid.Column="1" Grid.Row="1" Fill="#121214" />
                         </Grid>
                     </ControlTemplate>
@@ -175,7 +368,8 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ListBoxItem">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}" Margin="0,0,0,4">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4"
+                                Padding="{TemplateBinding Padding}" Margin="0,0,0,4">
                             <ContentPresenter />
                         </Border>
                     </ControlTemplate>
@@ -191,6 +385,48 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <Style x:Key="ContextMenuStyle" TargetType="ContextMenu">
+            <Setter Property="Background" Value="#1A1A1E" />
+            <Setter Property="BorderBrush" Value="#3F3F46" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6"
+                                Padding="{TemplateBinding Padding}" Margin="0,0,2,2" SnapsToDevicePixels="True"
+                                UseLayoutRounding="True">
+                            <StackPanel IsItemsHost="True" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ContextMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#E2E2E9" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#232329" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid Background="#121214">
@@ -202,104 +438,195 @@
         <Border Grid.Row="0" Background="#1A1A1E" Padding="16,6" BorderBrush="#232329" BorderThickness="0,0,0,1">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                    <Button Content="⬅ Back to Hub" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,12,0" Click="BackToMenu_Click" Cursor="Hand" />
-                    <Button Content="📁 Select Folder" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,12,0" Click="SelectFolder_Click" Cursor="Hand" />
-                    <Button Content="📥 Import .as" Style="{StaticResource ToolbarButtonStyle}" Click="ImportUI_Click" Cursor="Hand" Background="#232329" />
+                    <Button Content="⬅ Back to Hub" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,12,0"
+                            Click="BackToMenu_Click" Cursor="Hand" />
+                    <Button Content="📁 Select Folder" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,12,0"
+                            Click="SelectFolder_Click" Cursor="Hand" />
+                    <Button Content="📥 Import" Style="{StaticResource ToolbarButtonStyle}" Click="ImportUI_Click"
+                            Cursor="Hand" Background="#232329" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <TextBlock Text="Compile Path:" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,8,0" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" />
-                    <TextBox x:Name="CompilePathInput" Width="220" VerticalAlignment="Center" Margin="0,0,16,0" Style="{StaticResource ModernTextBoxStyle}" IsReadOnly="True" Background="#16161A" />
-
-                    <TextBlock Text="Class Name:" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,8,0" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" />
-                    <TextBox x:Name="OutputNameInput" Text="MyUI" Width="110" VerticalAlignment="Center" Margin="0,0,16,0" Style="{StaticResource ModernTextBoxStyle}" />
-
-                    <Button Content="✨ Generate UI" Background="#4D7CFE" Foreground="White" Padding="16,8" Style="{StaticResource ToolbarButtonStyle}" Click="GenerateUI_Click" Cursor="Hand" />
+                    <TextBlock Text="Compile Path:" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,8,0"
+                               FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" />
+                    <TextBox x:Name="CompilePathInput" Width="220" VerticalAlignment="Center" Margin="0,0,16,0"
+                             Style="{StaticResource ModernTextBoxStyle}" LostFocus="CompilePathInput_LostFocus"
+                             KeyDown="CompilePathInput_KeyDown" />
+                    <TextBlock Text="BG Path:" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,8,0"
+                               FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" />
+                    <TextBox x:Name="BackgroundPathInput" Width="130" VerticalAlignment="Center" Margin="0,0,16,0"
+                             Style="{StaticResource ModernTextBoxStyle}" LostFocus="BackgroundPathInput_LostFocus"
+                             KeyDown="BackgroundPathInput_KeyDown" />
+                    <TextBlock Text="Class Name:" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,8,0"
+                               FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" />
+                    <TextBox x:Name="OutputNameInput" Text="MyUI" Width="110" VerticalAlignment="Center"
+                             Margin="0,0,16,0" Style="{StaticResource ModernTextBoxStyle}" />
+                    <Button Content="✨ Generate UI" Background="#4D7CFE" Foreground="White" Padding="16,8"
+                            Style="{StaticResource ToolbarButtonStyle}" Click="GenerateUI_Click" Cursor="Hand" />
                 </StackPanel>
             </DockPanel>
         </Border>
 
         <Grid Grid.Row="1" Margin="20">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*" />
-                <RowDefinition Height="10" />
-                <RowDefinition Height="200" />
-            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="260" />
+            </Grid.ColumnDefinitions>
 
-            <Grid Grid.Row="0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="65" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="200" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="260" />
-                </Grid.ColumnDefinitions>
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Border Grid.Row="0" Background="#16161A" CornerRadius="6,6,0,0" BorderBrush="#232329"
+                        BorderThickness="1,1,1,0" Padding="10,8">
+                    <DockPanel>
+                        <TextBlock Text="HIERARCHY" Foreground="#4B5563" FontFamily="Segoe UI" FontSize="11"
+                                   FontWeight="Bold" VerticalAlignment="Center" />
+                        <Button Content="🗑" HorizontalAlignment="Right" Style="{StaticResource ActionIconButtonStyle}"
+                                Click="DeleteElement_Click" ToolTip="Delete Selected" />
+                    </DockPanel>
+                </Border>
+                <Border Grid.Row="1" Background="#16161A" CornerRadius="0,0,6,6" BorderBrush="#232329"
+                        BorderThickness="1">
+                    <ListBox x:Name="ElementsList" SelectionMode="Extended" Background="Transparent"
+                             BorderThickness="0" Padding="8" FontFamily="Segoe UI" FontSize="13"
+                             SelectionChanged="ElementsList_SelectionChanged" MouseDown="ElementsList_MouseDown">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.ContainerStyle>
+                                    <Style TargetType="{x:Type GroupItem}">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="{x:Type GroupItem}">
+                                                    <Grid>
+                                                        <Expander x:Name="GroupExpander"
+                                                                  Style="{StaticResource ModernExpanderStyle}"
+                                                                  IsExpanded="True" Background="Transparent"
+                                                                  BorderThickness="0" Margin="0,0,0,4">
+                                                            <Expander.Header>
+                                                                <Grid x:Name="GroupHeaderGrid" Height="28"
+                                                                      Background="Transparent"
+                                                                      MouseLeftButtonDown="GroupHeaderGrid_MouseLeftButtonDown">
+                                                                    <StackPanel Orientation="Horizontal"
+                                                                            VerticalAlignment="Center">
+                                                                        <Path Width="15" Height="10.5"
+                                                                              Data="M 1,3 C 1,2 2,1 3,1 L 6,1 L 8,3 L 15,3 C 16,3 17,4 17,5 L 17,14 C 17,15 16,16 15,16 L 3,16 C 2,16 1,15 1,14 Z"
+                                                                              Fill="#FFFFFF" Stretch="Fill"
+                                                                              Margin="0,0,8,0"
+                                                                              VerticalAlignment="Center" />
+                                                                        <TextBlock Text="{Binding Name}"
+                                                                                FontWeight="Bold" Foreground="#4D7CFE"
+                                                                                FontSize="12"
+                                                                                VerticalAlignment="Center" />
+                                                                    </StackPanel>
+                                                                </Grid>
+                                                            </Expander.Header>
+                                                            <ItemsPresenter Margin="16,0,0,0" />
+                                                        </Expander>
+                                                        <ItemsPresenter x:Name="UngroupedPresenter"
+                                                                        Visibility="Collapsed" />
+                                                    </Grid>
+                                                    <ControlTemplate.Triggers>
+                                                        <DataTrigger Binding="{Binding Name}" Value="{x:Null}">
+                                                            <Setter TargetName="GroupExpander" Property="Visibility"
+                                                                    Value="Collapsed" />
+                                                            <Setter TargetName="UngroupedPresenter"
+                                                                    Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Name}" Value="">
+                                                            <Setter TargetName="GroupExpander" Property="Visibility"
+                                                                    Value="Collapsed" />
+                                                            <Setter TargetName="UngroupedPresenter"
+                                                                    Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </GroupStyle.ContainerStyle>
+                            </GroupStyle>
+                        </ListBox.GroupStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Icon}" Margin="0,0,8,0" />
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+            </Grid>
 
-                <Grid Grid.Column="0">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Background="#16161A" CornerRadius="6,6,0,0" BorderBrush="#232329" BorderThickness="1,1,1,0" Padding="0,8">
-                        <TextBlock Text="TOOLS" HorizontalAlignment="Center" Foreground="#4B5563" FontFamily="Segoe UI" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
-                    </Border>
-                    <Border Grid.Row="1" Background="#16161A" CornerRadius="0,0,6,6" BorderBrush="#232329" BorderThickness="1">
-                        <ScrollViewer Padding="8" VerticalScrollBarVisibility="Hidden">
-                            <StackPanel>
-                                <Button Content="🟦" ToolTip="Add Rect" Style="{StaticResource ToolboxButtonStyle}" Click="AddRect_Click" />
-                                <Button Content="⭕" ToolTip="Add Oval" Style="{StaticResource ToolboxButtonStyle}" Click="AddOval_Click" />
-                                <Button Content="📝" ToolTip="Add Text" Style="{StaticResource ToolboxButtonStyle}" Click="AddText_Click" />
-                                <Button Content="🖼" ToolTip="Add Image" Style="{StaticResource ToolboxButtonStyle}" Click="AddImage_Click" />
-                                <Button Content="📊" ToolTip="Add Progress Bar" Style="{StaticResource ToolboxButtonStyle}" Click="AddProgressBar_Click" />
-                            </StackPanel>
-                        </ScrollViewer>
-                    </Border>
-                </Grid>
+            <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" />
 
-                <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" />
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Border Grid.Row="0" Background="#16161A" CornerRadius="6,6,0,0" BorderBrush="#232329"
+                        BorderThickness="1,1,1,0" Padding="14,8">
+                    <TextBlock Text="VISUAL PREVIEW (RIGHT-CLICK TO ADD)" Foreground="#4B5563" FontFamily="Segoe UI"
+                               FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
+                </Border>
 
-                <Grid Grid.Column="2">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Background="#16161A" CornerRadius="6,6,0,0" BorderBrush="#232329" BorderThickness="1,1,1,0" Padding="10,8">
-                        <DockPanel>
-                            <TextBlock Text="HIERARCHY" Foreground="#4B5563" FontFamily="Segoe UI" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
-                            <Button Content="🗑" HorizontalAlignment="Right" Style="{StaticResource ActionIconButtonStyle}" Click="DeleteElement_Click" ToolTip="Delete Selected" />
-                        </DockPanel>
-                    </Border>
-                    <Border Grid.Row="1" Background="#16161A" CornerRadius="0,0,6,6" BorderBrush="#232329" BorderThickness="1">
-                        <ListBox x:Name="ElementsList" Background="Transparent" BorderThickness="0" Padding="8" FontFamily="Segoe UI" FontSize="13" SelectionChanged="ElementsList_SelectionChanged">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding Icon}" Margin="0,0,8,0" />
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Border>
-                </Grid>
+                <Border x:Name="PreviewBorder" Grid.Row="1" Background="#0A0A0C" CornerRadius="0,0,6,6"
+                        BorderBrush="#232329" BorderThickness="1" ClipToBounds="True"
+                        MouseDown="ElementsList_MouseDown"
+                        MouseLeftButtonDown="PreviewWorkspace_MouseLeftButtonDown"
+                        MouseLeftButtonUp="PreviewWorkspace_MouseLeftButtonUp"
+                        MouseMove="PreviewWorkspace_MouseMove"
+                        MouseRightButtonDown="PreviewWorkspace_MouseRightButtonDown"
+                        SizeChanged="PreviewBorder_SizeChanged"
+                        Focusable="True">
+                    <Border.ContextMenu>
+                        <ContextMenu Style="{StaticResource ContextMenuStyle}">
+                            <MenuItem Header="🟦  Add Rectangle" Style="{StaticResource ContextMenuItemStyle}"
+                                      Click="AddRect_Click" />
+                            <MenuItem Header="⭕  Add Oval" Style="{StaticResource ContextMenuItemStyle}"
+                                      Click="AddOval_Click" />
+                            <MenuItem Header="📝  Add Text" Style="{StaticResource ContextMenuItemStyle}"
+                                      Click="AddText_Click" />
+                            <MenuItem Header="🖼  Add Image" Style="{StaticResource ContextMenuItemStyle}"
+                                      Click="AddImage_Click" />
+                            <MenuItem Header="📊  Add Progress Bar" Style="{StaticResource ContextMenuItemStyle}"
+                                      Click="AddProgressBar_Click" />
+                            <Separator Background="#3F3F46" Margin="4,4" />
+                            <MenuItem Header="🔗  Group Selected" Style="{StaticResource ContextMenuItemStyle}"
+                                      Click="GroupSelected_Click" />
+                            <MenuItem Header="🔓  Ungroup Selected" Style="{StaticResource ContextMenuItemStyle}"
+                                      Click="UngroupSelected_Click" />
+                            <Separator Background="#3F3F46" Margin="4,4" />
+                            <MenuItem Header="🗑  Delete Selected" Style="{StaticResource ContextMenuItemStyle}"
+                                      Click="DeleteElement_Click" />
+                        </ContextMenu>
+                    </Border.ContextMenu>
 
-                <GridSplitter Grid.Column="3" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" />
+                    <Grid>
+                        <Image Stretch="UniformToFill" IsHitTestVisible="False">
+                            <Image.Source>
+                                <MultiBinding Converter="{StaticResource PathConverter}">
+                                    <Binding Path="Text" ElementName="BackgroundPathInput" />
+                                    <Binding Path="Text" ElementName="CompilePathInput" />
+                                </MultiBinding>
+                            </Image.Source>
+                        </Image>
 
-                <Grid Grid.Column="4">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Background="#16161A" CornerRadius="6,6,0,0" BorderBrush="#232329" BorderThickness="1,1,1,0" Padding="14,8">
-                        <TextBlock Text="VISUAL PREVIEW (DRAG &amp; DROP)" Foreground="#4B5563" FontFamily="Segoe UI" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
-                    </Border>
-                    <Border Grid.Row="1" Background="#0A0A0C" CornerRadius="0,0,6,6" BorderBrush="#232329" BorderThickness="1" ClipToBounds="True">
                         <ItemsControl x:Name="VisualPreviewContainer">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <Canvas x:Name="PreviewWorkspace" Background="Transparent" IsItemsHost="True" MouseLeftButtonDown="PreviewWorkspace_MouseLeftButtonDown" MouseLeftButtonUp="PreviewWorkspace_MouseLeftButtonUp" MouseMove="PreviewWorkspace_MouseMove" />
+                                    <Canvas x:Name="PreviewWorkspace" Background="Transparent" IsItemsHost="True" />
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemContainerStyle>
@@ -308,7 +635,8 @@
                                         <Setter.Value>
                                             <MultiBinding Converter="{StaticResource NormConverter}">
                                                 <Binding Path="X" />
-                                                <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                <Binding Path="ActualWidth"
+                                                         RelativeSource="{RelativeSource AncestorType=Canvas}" />
                                             </MultiBinding>
                                         </Setter.Value>
                                     </Setter>
@@ -316,7 +644,8 @@
                                         <Setter.Value>
                                             <MultiBinding Converter="{StaticResource NormConverter}">
                                                 <Binding Path="Y" />
-                                                <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                <Binding Path="ActualHeight"
+                                                         RelativeSource="{RelativeSource AncestorType=Canvas}" />
                                             </MultiBinding>
                                         </Setter.Value>
                                     </Setter>
@@ -331,7 +660,8 @@
                                                     <Setter.Value>
                                                         <MultiBinding Converter="{StaticResource NormConverter}">
                                                             <Binding Path="Width" />
-                                                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                            <Binding Path="ActualWidth"
+                                                                     RelativeSource="{RelativeSource AncestorType=Canvas}" />
                                                         </MultiBinding>
                                                     </Setter.Value>
                                                 </Setter>
@@ -339,7 +669,8 @@
                                                     <Setter.Value>
                                                         <MultiBinding Converter="{StaticResource NormConverter}">
                                                             <Binding Path="Height" />
-                                                            <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                            <Binding Path="ActualHeight"
+                                                                     RelativeSource="{RelativeSource AncestorType=Canvas}" />
                                                         </MultiBinding>
                                                     </Setter.Value>
                                                 </Setter>
@@ -352,9 +683,8 @@
                                             </Style>
                                         </Grid.Style>
 
-                                        <Border x:Name="BoundingBox" BorderBrush="#4D7CFE" BorderThickness="1" Visibility="Collapsed" SnapsToDevicePixels="True" />
-
-                                        <Border x:Name="RectVisual" CornerRadius="0" Visibility="Collapsed">
+                                        <Border x:Name="RectVisual" CornerRadius="{Binding Rounded, FallbackValue=0}"
+                                                Visibility="Collapsed">
                                             <Border.Background>
                                                 <MultiBinding Converter="{StaticResource RgbConverter}">
                                                     <Binding Path="R" />
@@ -376,7 +706,9 @@
                                             </Ellipse.Fill>
                                         </Ellipse>
 
-                                        <TextBlock x:Name="TextVisual" Text="{Binding Text}" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                                        <TextBlock x:Name="TextVisual" Text="{Binding Text}" TextWrapping="Wrap"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Visibility="Collapsed">
                                             <TextBlock.Foreground>
                                                 <MultiBinding Converter="{StaticResource RgbConverter}">
                                                     <Binding Path="R" />
@@ -388,17 +720,32 @@
                                         </TextBlock>
 
                                         <Grid x:Name="ImageVisual" Visibility="Collapsed">
-                                            <Border BorderBrush="#4D7CFE" BorderThickness="1" Background="#1F2937" Opacity="0.6" />
-                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <TextBlock Text="🖼" HorizontalAlignment="Center" FontSize="16" />
-                                                <TextBlock Text="{Binding Text}" Foreground="#9CA3AF" FontSize="10" HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="4,0" />
+                                            <Border BorderBrush="#4D7CFE" BorderThickness="1" Background="#1F2937"
+                                                    Opacity="0.6" />
+                                            <Image Stretch="UniformToFill">
+                                                <Image.Source>
+                                                    <MultiBinding Converter="{StaticResource PathConverter}">
+                                                        <Binding Path="Text" />
+                                                        <Binding Path="Text" ElementName="CompilePathInput" />
+                                                    </MultiBinding>
+                                                </Image.Source>
+                                            </Image>
+                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                                                        Background="#B0000000">
+                                                <TextBlock Text="{Binding Text}" Foreground="#9CA3AF" FontSize="10"
+                                                           HorizontalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" Margin="4,2" />
                                             </StackPanel>
                                         </Grid>
 
                                         <Grid x:Name="ProgressVisual" Visibility="Collapsed">
-                                            <Border Background="#1F2937" CornerRadius="3" BorderBrush="#374151" BorderThickness="1">
+                                            <Border Background="#1F2937" CornerRadius="3" BorderBrush="#374151"
+                                                    BorderThickness="1">
                                                 <Grid>
-                                                    <ProgressBar Value="70" Minimum="0" Maximum="100" Background="Transparent" BorderThickness="0">
+                                                    <ProgressBar
+                                                        Value="{Binding MiscValue, FallbackValue=0, TargetNullValue=0}"
+                                                        Minimum="0" Maximum="100" Background="Transparent"
+                                                        BorderThickness="0">
                                                         <ProgressBar.Foreground>
                                                             <MultiBinding Converter="{StaticResource RgbConverter}">
                                                                 <Binding Path="R" />
@@ -408,50 +755,14 @@
                                                             </MultiBinding>
                                                         </ProgressBar.Foreground>
                                                     </ProgressBar>
-                                                    <TextBlock Text="Progress Bar" Foreground="White" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" />
+                                                    <TextBlock Text="Progress Bar" Foreground="White" FontSize="10"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               FontWeight="SemiBold" />
                                                 </Grid>
                                             </Border>
                                         </Grid>
-
-                                        <Thumb x:Name="ResizeNW" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="NW" Margin="-5,-5,0,0" Visibility="Collapsed">
-                                            <Thumb.Template>
-                                                <ControlTemplate TargetType="Thumb">
-                                                    <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1"/>
-                                                </ControlTemplate>
-                                            </Thumb.Template>
-                                        </Thumb>
-                                        <Thumb x:Name="ResizeNE" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Top" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="NE" Margin="0,-5,-5,0" Visibility="Collapsed">
-                                            <Thumb.Template>
-                                                <ControlTemplate TargetType="Thumb">
-                                                    <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1"/>
-                                                </ControlTemplate>
-                                            </Thumb.Template>
-                                        </Thumb>
-                                        <Thumb x:Name="ResizeSW" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Bottom" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="SW" Margin="-5,0,0,-5" Visibility="Collapsed">
-                                            <Thumb.Template>
-                                                <ControlTemplate TargetType="Thumb">
-                                                    <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1"/>
-                                                </ControlTemplate>
-                                            </Thumb.Template>
-                                        </Thumb>
-                                        <Thumb x:Name="ResizeSE" Width="10" Height="10" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="SE" Margin="0,0,-5,-5" Visibility="Collapsed">
-                                            <Thumb.Template>
-                                                <ControlTemplate TargetType="Thumb">
-                                                    <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1"/>
-                                                </ControlTemplate>
-                                            </Thumb.Template>
-                                        </Thumb>
-
                                     </Grid>
                                     <DataTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="BoundingBox" Property="Visibility" Value="Visible" />
-                                            <Setter TargetName="ResizeNW" Property="Visibility" Value="Visible" />
-                                            <Setter TargetName="ResizeNE" Property="Visibility" Value="Visible" />
-                                            <Setter TargetName="ResizeSW" Property="Visibility" Value="Visible" />
-                                            <Setter TargetName="ResizeSE" Property="Visibility" Value="Visible" />
-                                        </Trigger>
-
                                         <DataTrigger Binding="{Binding Type}" Value="Rect">
                                             <Setter TargetName="RectVisual" Property="Visibility" Value="Visible" />
                                         </DataTrigger>
@@ -460,10 +771,6 @@
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding Type}" Value="Text">
                                             <Setter TargetName="TextVisual" Property="Visibility" Value="Visible" />
-                                            <Setter TargetName="ResizeNW" Property="Visibility" Value="Collapsed" />
-                                            <Setter TargetName="ResizeNE" Property="Visibility" Value="Collapsed" />
-                                            <Setter TargetName="ResizeSW" Property="Visibility" Value="Collapsed" />
-                                            <Setter TargetName="ResizeSE" Property="Visibility" Value="Collapsed" />
                                         </DataTrigger>
                                         <DataTrigger Binding="{Binding Type}" Value="Image">
                                             <Setter TargetName="ImageVisual" Property="Visibility" Value="Visible" />
@@ -475,146 +782,346 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </Border>
-                </Grid>
 
-                <GridSplitter Grid.Column="5" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" />
+                        <Canvas x:Name="SelectionOverlayCanvas" Background="{x:Null}">
+                            <Grid x:Name="SelectionBox" Visibility="Collapsed" Canvas.Left="0" Canvas.Top="0"
+                                  Width="100" Height="100">
+                                <Border Style="{StaticResource AnimatedBoundingBoxStyle}" IsHitTestVisible="False" />
 
-                <Grid Grid.Column="6">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <Border Grid.Row="0" Background="#1A1A1E" BorderBrush="#232329" BorderThickness="1,1,1,0" CornerRadius="6,6,0,0" Padding="14,8">
-                        <TextBlock Text="PROPERTIES" Foreground="#E2E2E9" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" />
-                    </Border>
-                    <Border Grid.Row="1" Background="#16161A" BorderBrush="#232329" BorderThickness="1,0,1,1" CornerRadius="0,0,6,6" Padding="16">
-                        <ScrollViewer>
-                            <StackPanel x:Name="PropertiesPanel" Visibility="Collapsed">
-                                <TextBlock Text="Element Name (Variable)" Foreground="#6B7280" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding SelectedItem.Name, ElementName=ElementsList}" KeyDown="PropertyInput_KeyDown" Style="{StaticResource ModernTextBoxStyle}" Margin="0,0,0,14" />
+                                <Thumb x:Name="ResizeNW" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="NW"
+                                       HorizontalAlignment="Left" VerticalAlignment="Top">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                                <Thumb x:Name="ResizeNE" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="NE"
+                                       HorizontalAlignment="Right" VerticalAlignment="Top">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                                <Thumb x:Name="ResizeSW" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="SW"
+                                       HorizontalAlignment="Left" VerticalAlignment="Bottom">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                                <Thumb x:Name="ResizeSE" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="SE"
+                                       HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
 
-                                <Grid Margin="0,0,0,14">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="12" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Position X" Foreground="#6B7280" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" />
-                                        <TextBox Text="{Binding SelectedItem.X, ElementName=ElementsList}" KeyDown="PropertyInput_KeyDown" Style="{StaticResource ModernTextBoxStyle}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Text="Position Y" Foreground="#6B7280" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" />
-                                        <TextBox Text="{Binding SelectedItem.Y, ElementName=ElementsList}" KeyDown="PropertyInput_KeyDown" Style="{StaticResource ModernTextBoxStyle}" />
-                                    </StackPanel>
-                                </Grid>
+                                <Thumb x:Name="ResizeN" Cursor="SizeNS" DragDelta="ResizeThumb_DragDelta" Tag="N"
+                                       HorizontalAlignment="Stretch" VerticalAlignment="Top">
+                                    <Thumb.Template>
+                                        <ControlTemplate>
+                                            <Border Background="Transparent" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                                <Thumb x:Name="ResizeS" Cursor="SizeNS" DragDelta="ResizeThumb_DragDelta" Tag="S"
+                                       HorizontalAlignment="Stretch" VerticalAlignment="Bottom">
+                                    <Thumb.Template>
+                                        <ControlTemplate>
+                                            <Border Background="Transparent" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                                <Thumb x:Name="ResizeW" Cursor="SizeWE" DragDelta="ResizeThumb_DragDelta" Tag="W"
+                                       HorizontalAlignment="Left" VerticalAlignment="Stretch">
+                                    <Thumb.Template>
+                                        <ControlTemplate>
+                                            <Border Background="Transparent" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                                <Thumb x:Name="ResizeE" Cursor="SizeWE" DragDelta="ResizeThumb_DragDelta" Tag="E"
+                                       HorizontalAlignment="Right" VerticalAlignment="Stretch">
+                                    <Thumb.Template>
+                                        <ControlTemplate>
+                                            <Border Background="Transparent" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Grid>
+                        </Canvas>
 
-                                <Grid Margin="0,0,0,14">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="12" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Width" Foreground="#6B7280" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" />
-                                        <TextBox Text="{Binding SelectedItem.Width, ElementName=ElementsList}" KeyDown="PropertyInput_KeyDown" Style="{StaticResource ModernTextBoxStyle}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Text="Height" Foreground="#6B7280" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" />
-                                        <TextBox Text="{Binding SelectedItem.Height, ElementName=ElementsList}" KeyDown="PropertyInput_KeyDown" Style="{StaticResource ModernTextBoxStyle}" />
-                                    </StackPanel>
-                                </Grid>
-
-                                <TextBlock Text="Text / Filename / Technique" Foreground="#6B7280" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" />
-                                <TextBox Text="{Binding SelectedItem.Text, ElementName=ElementsList}" KeyDown="PropertyInput_KeyDown" Style="{StaticResource ModernTextBoxStyle}" Margin="0,0,0,14" />
-
-                                <Grid Margin="0,0,0,14">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="8" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="8" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Color R" Foreground="#6B7280" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" />
-                                        <TextBox Text="{Binding SelectedItem.R, ElementName=ElementsList}" KeyDown="PropertyInput_KeyDown" Style="{StaticResource ModernTextBoxStyle}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Text="Color G" Foreground="#6B7280" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" />
-                                        <TextBox Text="{Binding SelectedItem.G, ElementName=ElementsList}" KeyDown="PropertyInput_KeyDown" Style="{StaticResource ModernTextBoxStyle}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="4">
-                                        <TextBlock Text="Color B" Foreground="#6B7280" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" />
-                                        <TextBox Text="{Binding SelectedItem.B, ElementName=ElementsList}" KeyDown="PropertyInput_KeyDown" Style="{StaticResource ModernTextBoxStyle}" />
-                                    </StackPanel>
-                                </Grid>
-
-                                <Grid Margin="0,0,0,14">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="12" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Opacity" Foreground="#6B7280" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" />
-                                        <TextBox Text="{Binding SelectedItem.Opacity, ElementName=ElementsList}" KeyDown="PropertyInput_KeyDown" Style="{StaticResource ModernTextBoxStyle}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Text="Callback / Value" Foreground="#6B7280" FontSize="11" FontWeight="Bold" Margin="0,0,0,4" />
-                                        <TextBox Text="{Binding SelectedItem.MiscValue, ElementName=ElementsList}" KeyDown="PropertyInput_KeyDown" Style="{StaticResource ModernTextBoxStyle}" />
-                                    </StackPanel>
-                                </Grid>
-                            </StackPanel>
-                        </ScrollViewer>
-                    </Border>
-                </Grid>
+                    </Grid>
+                </Border>
             </Grid>
 
-            <GridSplitter Grid.Row="1" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeNS" />
+            <GridSplitter Grid.Column="3" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" />
 
-            <Border Grid.Row="2" Background="#0D0D10" CornerRadius="6" BorderBrush="#232329" BorderThickness="1">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="32" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+            <Grid Grid.Column="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Border Grid.Row="0" Background="#1A1A1E" BorderBrush="#232329" BorderThickness="1,1,1,0"
+                        CornerRadius="6,6,0,0" Padding="14,8">
+                    <TextBlock Text="PROPERTIES" Foreground="#E2E2E9" FontFamily="Segoe UI" FontSize="12"
+                               FontWeight="SemiBold" />
+                </Border>
+                <Border Grid.Row="1" Background="#16161A" BorderBrush="#232329" BorderThickness="1"
+                        CornerRadius="0,0,6,6" Padding="16">
+                    <ScrollViewer>
+                        <StackPanel x:Name="PropertiesPanel" Visibility="Collapsed">
+                            <TextBlock Text="Element Name (Variable)" Foreground="#6B7280" FontSize="11"
+                                       FontWeight="Bold" Margin="0,0,0,4" />
+                            <TextBox x:Name="ElementNameTextBox"
+                                     Text="{Binding SelectedItem.Name, ElementName=ElementsList}"
+                                     KeyDown="PropertyInput_KeyDown" Style="{StaticResource ModernTextBoxStyle}"
+                                     Margin="0,0,0,14" />
 
-                    <Border Grid.Row="0" Background="#131317" BorderBrush="#232329" BorderThickness="0,0,0,1" CornerRadius="5,5,0,0" Padding="12,0">
-                        <DockPanel>
-                            <TextBlock Text="CONSOLE OUTPUT" Foreground="#4B5563" FontFamily="Segoe UI" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" DockPanel.Dock="Left" />
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <Button Content="📋 Copy All" Style="{StaticResource ActionIconButtonStyle}" Click="CopyConsole_Click" Cursor="Hand" Padding="8,4" Margin="0,0,6,0" />
-                                <ToggleButton x:Name="AutoscrollToggle" Content="⬇ Autoscroll" IsChecked="True" Checked="AutoscrollToggle_Checked" Cursor="Hand" Margin="0,0,6,0" Style="{StaticResource ActionToggleButtonStyle}" />
-                                <Button Content="🗑 Clear" Style="{StaticResource ActionIconButtonStyle}" Click="ClearConsole_Click" Cursor="Hand" Padding="8,4" />
+                            <StackPanel x:Name="GroupPropertySection" Visibility="Collapsed">
+                                <TextBlock Text="Group Name" Foreground="#6B7280" FontSize="11" FontWeight="Bold"
+                                           Margin="0,0,0,4" />
+                                <TextBox x:Name="GroupNameTextBox" KeyDown="GroupNameInput_KeyDown"
+                                         LostFocus="GroupNameTextBox_LostFocus"
+                                         Style="{StaticResource ModernTextBoxStyle}" Margin="0,0,0,14" />
                             </StackPanel>
-                        </DockPanel>
-                    </Border>
 
-                    <ScrollViewer Name="ConsoleScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl Name="ConsoleOutput" Padding="12">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBox Text="{Binding Text, Mode=OneWay}" Foreground="{Binding Color}" FontFamily="Consolas" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,2" IsReadOnly="True" Background="Transparent" BorderThickness="0" SelectionBrush="#3D4D7CFE" CaretBrush="Transparent" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                            <Grid Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Position X" Foreground="#6B7280" FontSize="11" FontWeight="Bold"
+                                               Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding SelectedItem.X, ElementName=ElementsList}"
+                                             KeyDown="PropertyInput_KeyDown"
+                                             Style="{StaticResource ModernTextBoxStyle}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Position Y" Foreground="#6B7280" FontSize="11" FontWeight="Bold"
+                                               Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding SelectedItem.Y, ElementName=ElementsList}"
+                                             KeyDown="PropertyInput_KeyDown"
+                                             Style="{StaticResource ModernTextBoxStyle}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Width" Foreground="#6B7280" FontSize="11" FontWeight="Bold"
+                                               Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding SelectedItem.Width, ElementName=ElementsList}"
+                                             KeyDown="PropertyInput_KeyDown"
+                                             Style="{StaticResource ModernTextBoxStyle}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Height" Foreground="#6B7280" FontSize="11" FontWeight="Bold"
+                                               Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding SelectedItem.Height, ElementName=ElementsList}"
+                                             KeyDown="PropertyInput_KeyDown"
+                                             Style="{StaticResource ModernTextBoxStyle}" />
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="Text / Filename / Technique" Foreground="#6B7280" FontSize="11"
+                                       FontWeight="Bold" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding SelectedItem.Text, ElementName=ElementsList}"
+                                     KeyDown="PropertyInput_KeyDown" Style="{StaticResource ModernTextBoxStyle}"
+                                     Margin="0,0,0,14" />
+
+                            <StackPanel x:Name="FontPropertySection">
+                                <StackPanel.Style>
+                                    <Style TargetType="StackPanel">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger
+                                                Binding="{Binding SelectedItem.Type, ElementName=ElementsList}"
+                                                Value="Text">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Text="Font ID / Type" Foreground="#6B7280" FontSize="11" FontWeight="Bold"
+                                           Margin="0,0,0,4" />
+                                <ComboBox
+                                    ItemsSource="{Binding FontsList, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    SelectedItem="{Binding SelectedItem.Font, ElementName=ElementsList}"
+                                    Style="{StaticResource ModernComboBoxStyle}"
+                                    Margin="0,0,0,14" />
+                            </StackPanel>
+
+                            <TextBlock Text="Color &amp; Appearance" Foreground="#6B7280" FontSize="11"
+                                       FontWeight="Bold" Margin="0,10,0,6" />
+                            <Border Background="#1A1A1E" CornerRadius="6" Padding="12" BorderBrush="#232329"
+                                    BorderThickness="1" Margin="0,0,0,14">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="50" />
+                                        <ColumnDefinition Width="14" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Top">
+                                        <Border Height="42" CornerRadius="4" BorderBrush="#3F3F46" BorderThickness="1"
+                                                Margin="0,0,0,6">
+                                            <Border.Background>
+                                                <MultiBinding Converter="{StaticResource RgbConverter}">
+                                                    <Binding Path="SelectedItem.R" ElementName="ElementsList" />
+                                                    <Binding Path="SelectedItem.G" ElementName="ElementsList" />
+                                                    <Binding Path="SelectedItem.B" ElementName="ElementsList" />
+                                                    <Binding Path="SelectedItem.Opacity" ElementName="ElementsList" />
+                                                </MultiBinding>
+                                            </Border.Background>
+                                        </Border>
+
+                                        <Button Height="20" Click="Eyedropper_Click" Cursor="Hand"
+                                                ToolTip="Pick Color From Workspace">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="BtnBorder" Background="#232329"
+                                                            BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="4">
+                                                        <Path x:Name="BtnIcon"
+                                                              Data="M14.71,2.29a3,3,0,0,0-4.24,0l-1.5,1.5,2.83,2.83,1.5-1.5A3,3,0,0,0,14.71,2.29ZM7.59,5.21,1.5,11.3V14.12h2.83L10.41,8Z"
+                                                              Fill="#9CA3AF" Width="11" Height="11" Stretch="Uniform"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="BtnBorder" Property="Background"
+                                                                    Value="#2D2D35" />
+                                                            <Setter TargetName="BtnBorder" Property="BorderBrush"
+                                                                    Value="#52525B" />
+                                                            <Setter TargetName="BtnIcon" Property="Fill"
+                                                                    Value="#4D7CFE" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsPressed" Value="True">
+                                                            <Setter TargetName="BtnBorder" Property="Background"
+                                                                    Value="#16161A" />
+                                                            <Setter TargetName="BtnBorder" Property="BorderBrush"
+                                                                    Value="#4D7CFE" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="30" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="HEX" Foreground="#9CA3AF" FontWeight="Bold" FontSize="11"
+                                                       VerticalAlignment="Center" />
+                                            <TextBox Grid.Column="1" x:Name="HexColorTextBox"
+                                                     Style="{StaticResource ModernTextBoxStyle}" Padding="4,2"
+                                                     FontSize="11" HorizontalContentAlignment="Center"
+                                                     LostFocus="HexColorTextBox_LostFocus"
+                                                     KeyDown="HexColorTextBox_KeyDown" />
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="38" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="R" Foreground="#EF4444" FontWeight="Bold" FontSize="11"
+                                                       VerticalAlignment="Center" />
+                                            <Slider Grid.Column="1" Minimum="0" Maximum="255"
+                                                    IsSnapToTickEnabled="True"
+                                                    Value="{Binding SelectedItem.R, ElementName=ElementsList}"
+                                                    Margin="8,0" Style="{StaticResource ModernSliderStyle}"
+                                                    ValueChanged="ColorSlider_ValueChanged" />
+                                            <TextBox Grid.Column="2"
+                                                     Text="{Binding SelectedItem.R, ElementName=ElementsList}"
+                                                     Style="{StaticResource ModernTextBoxStyle}" Padding="4,2"
+                                                     FontSize="11" HorizontalContentAlignment="Center"
+                                                     KeyDown="PropertyInput_KeyDown" />
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,5">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="38" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="G" Foreground="#22C55E" FontWeight="Bold" FontSize="11"
+                                                       VerticalAlignment="Center" />
+                                            <Slider Grid.Column="1" Minimum="0" Maximum="255"
+                                                    IsSnapToTickEnabled="True"
+                                                    Value="{Binding SelectedItem.G, ElementName=ElementsList}"
+                                                    Margin="8,0" Style="{StaticResource ModernSliderStyle}"
+                                                    ValueChanged="ColorSlider_ValueChanged" />
+                                            <TextBox Grid.Column="2"
+                                                     Text="{Binding SelectedItem.G, ElementName=ElementsList}"
+                                                     Style="{StaticResource ModernTextBoxStyle}" Padding="4,2"
+                                                     FontSize="11" HorizontalContentAlignment="Center"
+                                                     KeyDown="PropertyInput_KeyDown" />
+                                        </Grid>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="38" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="B" Foreground="#3B82F6" FontWeight="Bold" FontSize="11"
+                                                       VerticalAlignment="Center" />
+                                            <Slider Grid.Column="1" Minimum="0" Maximum="255"
+                                                    IsSnapToTickEnabled="True"
+                                                    Value="{Binding SelectedItem.B, ElementName=ElementsList}"
+                                                    Margin="8,0" Style="{StaticResource ModernSliderStyle}"
+                                                    ValueChanged="ColorSlider_ValueChanged" />
+                                            <TextBox Grid.Column="2"
+                                                     Text="{Binding SelectedItem.B, ElementName=ElementsList}"
+                                                     Style="{StaticResource ModernTextBoxStyle}" Padding="4,2"
+                                                     FontSize="11" HorizontalContentAlignment="Center"
+                                                     KeyDown="PropertyInput_KeyDown" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <Grid Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Opacity" Foreground="#6B7280" FontSize="11" FontWeight="Bold"
+                                               Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding SelectedItem.Opacity, ElementName=ElementsList}"
+                                             KeyDown="PropertyInput_KeyDown"
+                                             Style="{StaticResource ModernTextBoxStyle}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Misc Value / Time" Foreground="#6B7280" FontSize="11"
+                                               FontWeight="Bold" Margin="0,0,0,4" />
+                                    <TextBox Text="{Binding SelectedItem.MiscValue, ElementName=ElementsList}"
+                                             KeyDown="PropertyInput_KeyDown"
+                                             Style="{StaticResource ModernTextBoxStyle}" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
                     </ScrollViewer>
-
-                    <Border Grid.Row="2" Background="#111114" BorderBrush="#232329" BorderThickness="0,1,0,0" Padding="8,6">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text=">" Foreground="#4D7CFE" FontFamily="Consolas" FontSize="13" FontWeight="Bold" VerticalAlignment="Center" Margin="6,0,8,0" />
-                            <TextBox Grid.Column="1" x:Name="TerminalInput" Background="Transparent" Foreground="#D4D4D4" BorderThickness="0" FontFamily="Consolas" FontSize="13" VerticalAlignment="Center" KeyDown="TerminalInput_KeyDown" CaretBrush="#4D7CFE" />
-                        </Grid>
-                    </Border>
-                </Grid>
-            </Border>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
-</UserControl>
+</utils1:LifecycleUserControl>

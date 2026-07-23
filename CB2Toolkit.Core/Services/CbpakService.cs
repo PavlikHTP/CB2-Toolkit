@@ -13,7 +13,7 @@ public class CbpakService
     private const long MAX_FILE_SIZE = 268435456;
     private const long MAX_PACK_SIZE = 1431655765;
 
-    private readonly HashSet<string> _blockedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    private readonly string[] _blockedExtensions = 
     {
         "exe", "dll", "vbs", "vbe", "wsf", "ws", "bat", "cmd", "chm", "com", "out", "paf",
         "pex", "ps1", "run", "prg", "pif", "rtf", "pdf", "msc", "msp", "jar", "js",

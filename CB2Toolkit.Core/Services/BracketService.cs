@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using CB2Toolkit.Core.Utilities;
 using ICSharpCode.AvalonEdit;
 using ICSharpCode.AvalonEdit.Document;

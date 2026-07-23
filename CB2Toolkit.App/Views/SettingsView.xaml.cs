@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using CB2Toolkit.CodeEditor.Models.Enums;
 using CB2Toolkit.CodeEditor.Views;
 using CB2Toolkit.Core;
@@ -16,6 +17,18 @@ namespace CB2Toolkit.Views;
 public partial class SettingsView : UserControl
 {
     private bool _isBusy;
+
+    private DispatcherTimer? _hotkeyAnimationTimer;
+    private Button? _activeHotkeyButton;
+    private int _hotkeyAnimationFrame;
+
+    private static readonly string[] HotkeyAnimationFrames = new[]
+    {
+        "    > Press Key <    ",
+        "   >> Press Key <<   ",
+        "  >>> Press Key <<<  ",
+        " >>>> Press Key <<<< "
+    };
 
     private static readonly Brush ActiveBackgroundBrush = CreateFrozenBrush("#2B2B30");
     private static readonly Brush ActiveBorderBrush = CreateFrozenBrush("#4D7CFE");
@@ -53,15 +66,17 @@ public partial class SettingsView : UserControl
         LoadHotkey(GlobalSearchHotkeyButton, settings.Hotkeys.GlobalSearchKey, settings.Hotkeys.GlobalSearchModifiers);
         LoadHotkey(SaveFileHotkeyButton, settings.Hotkeys.SaveFileKey, settings.Hotkeys.SaveFileModifiers);
         LoadHotkey(SearchPanelHotkeyButton, settings.Hotkeys.SearchPanelKey, settings.Hotkeys.SearchPanelModifiers);
-        LoadHotkey(DuplicateLineHotkeyButton, settings.Hotkeys.DuplicateLineKey, settings.Hotkeys.DuplicateLineModifiers);
+        LoadHotkey(DuplicateLineHotkeyButton, settings.Hotkeys.DuplicateKey, settings.Hotkeys.DuplicateModifiers);
         LoadHotkey(SaveAllHotkeyButton, settings.Hotkeys.SaveAllKey, settings.Hotkeys.SaveAllModifiers);
         LoadHotkey(RunCompilerHotkeyButton, settings.Hotkeys.RunCompilerKey, settings.Hotkeys.RunCompilerModifiers);
         LoadHotkey(UndoHotkeyButton, settings.Hotkeys.UndoKey, settings.Hotkeys.UndoModifiers);
         LoadHotkey(RedoHotkeyButton, settings.Hotkeys.RedoKey, settings.Hotkeys.RedoModifiers);
-        LoadHotkey(RenameFileHotkeyButton, settings.Hotkeys.RenameFile, settings.Hotkeys.RenameFileModifiers);
-        LoadHotkey(DeleteFileHotkeyButton, settings.Hotkeys.DeleteFile, settings.Hotkeys.DeleteFileModifiers);
+        LoadHotkey(RenameFileHotkeyButton, settings.Hotkeys.RenameKey, settings.Hotkeys.RenameModifiers);
+        LoadHotkey(DeleteFileHotkeyButton, settings.Hotkeys.DeleteKey, settings.Hotkeys.DeleteModifiers);
         LoadHotkey(NavigateBackHotkeyButton, settings.Hotkeys.NavigateBackKey, settings.Hotkeys.NavigateBackModifiers);
         LoadHotkey(NavigateForwardHotkeyButton, settings.Hotkeys.NavigateForwardKey, settings.Hotkeys.NavigateForwardModifiers);
+        LoadHotkey(SelectAllHotkeyButton, settings.Hotkeys.SelectAllKey, settings.Hotkeys.SelectAllModifiers);
+        LoadHotkey(ConsoleHotkeyButton, settings.Hotkeys.ConsoleKey, settings.Hotkeys.ConsoleModifiers);
     }
 
     private void SaveUiToSettings(AppSettings settings)
@@ -84,27 +99,87 @@ public partial class SettingsView : UserControl
         SaveHotkey(GlobalSearchHotkeyButton, (k, m) => { settings.Hotkeys.GlobalSearchKey = k; settings.Hotkeys.GlobalSearchModifiers = m; });
         SaveHotkey(SaveFileHotkeyButton, (k, m) => { settings.Hotkeys.SaveFileKey = k; settings.Hotkeys.SaveFileModifiers = m; });
         SaveHotkey(SearchPanelHotkeyButton, (k, m) => { settings.Hotkeys.SearchPanelKey = k; settings.Hotkeys.SearchPanelModifiers = m; });
-        SaveHotkey(DuplicateLineHotkeyButton, (k, m) => { settings.Hotkeys.DuplicateLineKey = k; settings.Hotkeys.DuplicateLineModifiers = m; });
+        SaveHotkey(DuplicateLineHotkeyButton, (k, m) => { settings.Hotkeys.DuplicateKey = k; settings.Hotkeys.DuplicateModifiers = m; });
         SaveHotkey(SaveAllHotkeyButton, (k, m) => { settings.Hotkeys.SaveAllKey = k; settings.Hotkeys.SaveAllModifiers = m; });
         SaveHotkey(RunCompilerHotkeyButton, (k, m) => { settings.Hotkeys.RunCompilerKey = k; settings.Hotkeys.RunCompilerModifiers = m; });
         SaveHotkey(UndoHotkeyButton, (k, m) => { settings.Hotkeys.UndoKey = k; settings.Hotkeys.UndoModifiers = m; });
         SaveHotkey(RedoHotkeyButton, (k, m) => { settings.Hotkeys.RedoKey = k; settings.Hotkeys.RedoModifiers = m; });
-        SaveHotkey(RenameFileHotkeyButton, (k, m) => { settings.Hotkeys.RenameFile = k; settings.Hotkeys.RenameFileModifiers = m; });
-        SaveHotkey(DeleteFileHotkeyButton, (k, m) => { settings.Hotkeys.DeleteFile = k; settings.Hotkeys.DeleteFileModifiers = m; });
+        SaveHotkey(RenameFileHotkeyButton, (k, m) => { settings.Hotkeys.RenameKey = k; settings.Hotkeys.RenameModifiers = m; });
+        SaveHotkey(DeleteFileHotkeyButton, (k, m) => { settings.Hotkeys.DeleteKey = k; settings.Hotkeys.DeleteModifiers = m; });
         SaveHotkey(NavigateBackHotkeyButton, (k, m) => { settings.Hotkeys.NavigateBackKey = k; settings.Hotkeys.NavigateBackModifiers = m; });
         SaveHotkey(NavigateForwardHotkeyButton, (k, m) => { settings.Hotkeys.NavigateForwardKey = k; settings.Hotkeys.NavigateForwardModifiers = m; });
+        SaveHotkey(SelectAllHotkeyButton, (k, m) => { settings.Hotkeys.SelectAllKey = k; settings.Hotkeys.SelectAllModifiers = m; });
+        SaveHotkey(ConsoleHotkeyButton, (k, m) => { settings.Hotkeys.ConsoleKey = k; settings.Hotkeys.ConsoleModifiers = m; });
+    }
+
+    private void StartHotkeyAnimation(Button button)
+    {
+        ResetActiveHotkeyButton();
+
+        _activeHotkeyButton = button;
+        _hotkeyAnimationFrame = 0;
+
+        _activeHotkeyButton.Background = ActiveBackgroundBrush;
+        _activeHotkeyButton.BorderBrush = ActiveBorderBrush;
+        _activeHotkeyButton.Content = HotkeyAnimationFrames[0];
+
+        _hotkeyAnimationTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(160)
+        };
+        _hotkeyAnimationTimer.Tick += HotkeyAnimationTimer_Tick;
+        _hotkeyAnimationTimer.Start();
+    }
+
+    private void HotkeyAnimationTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_activeHotkeyButton == null) return;
+
+        _hotkeyAnimationFrame = (_hotkeyAnimationFrame + 1) % HotkeyAnimationFrames.Length;
+        _activeHotkeyButton.Content = HotkeyAnimationFrames[_hotkeyAnimationFrame];
+    }
+
+    private void StopHotkeyAnimation()
+    {
+        if (_hotkeyAnimationTimer != null)
+        {
+            _hotkeyAnimationTimer.Stop();
+            _hotkeyAnimationTimer.Tick -= HotkeyAnimationTimer_Tick;
+            _hotkeyAnimationTimer = null;
+        }
+        _activeHotkeyButton = null;
+    }
+
+    private void ResetActiveHotkeyButton()
+    {
+        if (_activeHotkeyButton != null)
+        {
+            _activeHotkeyButton.Background = NormalBackgroundBrush;
+            _activeHotkeyButton.BorderBrush = NormalBorderBrush;
+
+            if (_activeHotkeyButton.Tag is Tuple<string, string> t)
+            {
+                LoadHotkey(_activeHotkeyButton, t.Item1, t.Item2);
+            }
+        }
+
+        StopHotkeyAnimation();
     }
 
     private void HotkeyButton_Click(object sender, RoutedEventArgs e)
     {
-        Button button = (Button)sender;
-        button.Content = ">>> Press Key <<<";
-        button.Background = ActiveBackgroundBrush;
-        button.BorderBrush = ActiveBorderBrush;
+        if (sender is Button button)
+        {
+            StartHotkeyAnimation(button);
+        }
     }
 
     private void HotkeyButton_KeyDown(object sender, KeyEventArgs e)
     {
+        var button = (Button)sender;
+
+        if (button != _activeHotkeyButton) return;
+
         e.Handled = true;
 
         if (e.Key == Key.LeftCtrl || e.Key == Key.RightCtrl ||
@@ -112,13 +187,15 @@ public partial class SettingsView : UserControl
             e.Key == Key.LeftShift || e.Key == Key.RightShift ||
             e.Key == Key.LWin || e.Key == Key.RWin)
         {
+         
             return;
         }
+        
+        StopHotkeyAnimation();
 
         Key pressedKey = e.Key == Key.System ? e.SystemKey : e.Key;
         ModifierKeys modifiers = Keyboard.Modifiers;
 
-        var button = (Button)sender;
         string keyStr = pressedKey.ToString();
         string modStr = modifiers.ToString();
 
@@ -133,7 +210,7 @@ public partial class SettingsView : UserControl
     {
         var button = (Button)sender;
 
-        if (button.Content is string content && content == ">>> Press Key <<<")
+        if (button == _activeHotkeyButton)
         {
             if (e.ChangedButton == MouseButton.Left)
             {
@@ -141,6 +218,8 @@ public partial class SettingsView : UserControl
             }
 
             e.Handled = true;
+
+            StopHotkeyAnimation();
 
             string keyStr = e.ChangedButton.ToString();
             string modStr = Keyboard.Modifiers.ToString();
@@ -152,7 +231,7 @@ public partial class SettingsView : UserControl
             button.BorderBrush = NormalBorderBrush;
         }
     }
-    
+
     private void LoadHotkey(Button button, string key, string modifiers)
     {
         button.Content = string.IsNullOrEmpty(modifiers) || modifiers == "None" ? key : $"{modifiers} + {key}".Replace(", ", " + ");
@@ -171,10 +250,11 @@ public partial class SettingsView : UserControl
     {
         SaveSettings_Click(sender, e);
     }
-    
+
     private void BackToMenu_Click(object sender, RoutedEventArgs e)
     {
-        BackToMenu();
+        var mainWindow = Window.GetWindow(this) as MainWindow;
+        mainWindow?.NavigateToMenu();
     }
     
     private async void SaveSettings_Click(object sender, RoutedEventArgs e)
@@ -235,7 +315,7 @@ public partial class SettingsView : UserControl
             {
                 Window parentWindow = Window.GetWindow(this);
                 bool success = await SettingsService.Instance.ImportAsync(openFileDialog.FileName);
-                
+
                 if (success)
                 {
                     LoadSettingsIntoUi();
@@ -274,7 +354,7 @@ public partial class SettingsView : UserControl
 
                 Window parentWindow = Window.GetWindow(this);
                 bool success = await SettingsService.Instance.ExportAsync(saveFileDialog.FileName);
-                
+
                 if (success)
                 {
                     ModernMessageBox.Show(parentWindow, "Configuration successfully exported!", "CB2Toolkit");
@@ -288,16 +368,6 @@ public partial class SettingsView : UserControl
         finally
         {
             _isBusy = false;
-        }
-    }
-
-    public void BackToMenu()
-    {
-        Window currentWindow = Window.GetWindow(this);
-        if (currentWindow != null)
-        {
-            dynamic mainWindow = currentWindow;
-            mainWindow.NavigateToMenu();
         }
     }
 }

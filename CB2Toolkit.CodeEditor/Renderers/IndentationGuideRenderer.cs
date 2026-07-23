@@ -27,7 +27,7 @@ public class IndentationGuideRenderer : IBackgroundRenderer
 
     public void Draw(TextView textView, DrawingContext drawingContext)
     {
-        if (textView == null || drawingContext == null || !textView.VisualLinesValid)
+        if (!textView.VisualLinesValid)
             return;
 
         var visualLines = textView.VisualLines;
@@ -41,19 +41,17 @@ public class IndentationGuideRenderer : IBackgroundRenderer
             var docLine = visualLine.FirstDocumentLine;
             if (docLine == null) continue;
 
-            int currentIndent = GetResolvedIndent(docLine);
-            int prevIndent = docLine.PreviousLine != null ? GetResolvedIndent(docLine.PreviousLine) : 0;
-            int nextIndent = docLine.NextLine != null ? GetResolvedIndent(docLine.NextLine) : 0;
+            int effectiveIndent = GetEffectiveIndent(docLine);
+            effectiveIndent = GetStructuralIndent(docLine, effectiveIndent);
+            
+            if (effectiveIndent <= 0) continue;
 
             Point zeroPos = visualLine.GetVisualPosition(1, VisualYPosition.LineTop);
             double yTop = visualLine.VisualTop - textView.ScrollOffset.Y;
             double yBottom = (visualLine.VisualTop + visualLine.Height) - textView.ScrollOffset.Y;
 
-            for (int i = 1; i < currentIndent; i++)
+            for (int i = 1; i < effectiveIndent; i++)
             {
-                if (i >= prevIndent && i >= nextIndent)
-                    continue;
-
                 int visualColumn = (i * indentSize) + 1;
                 double x = zeroPos.X + (visualColumn - 1) * spaceWidth - textView.ScrollOffset.X;
 
@@ -72,41 +70,61 @@ public class IndentationGuideRenderer : IBackgroundRenderer
         int indentSize = _editor.Options.IndentationSize;
         foreach (char c in text)
         {
-            if (c == ' ') leadingSpaces++;
+            if (c == ' ' || c == '\u00A0') leadingSpaces++;
             else if (c == '\t') leadingSpaces += indentSize;
+            else if (char.IsWhiteSpace(c)) leadingSpaces++;
             else break;
         }
         return leadingSpaces / indentSize;
     }
 
-    private int GetResolvedIndent(DocumentLine line)
+    private int GetEffectiveIndent(DocumentLine line)
     {
         if (line == null) return 0;
+
         int raw = GetRawIndent(line);
         if (raw != -1) return raw;
 
-        int prevIndent = 0;
-        var p = line.PreviousLine;
         int count = 0;
-        while (p != null && count < 50)
+        var next = line.NextLine;
+        while (next != null && count < 100)
         {
-            int r = GetRawIndent(p);
-            if (r != -1) { prevIndent = r; break; }
-            p = p.PreviousLine;
+            int nextRaw = GetRawIndent(next);
+            if (nextRaw != -1) return nextRaw;
+            next = next.NextLine;
             count++;
         }
 
-        int nextIndent = 0;
-        var n = line.NextLine;
         count = 0;
-        while (n != null && count < 50)
+        var prev = line.PreviousLine;
+        while (prev != null && count < 100)
         {
-            int r = GetRawIndent(n);
-            if (r != -1) { nextIndent = r; break; }
-            n = n.NextLine;
+            int prevRaw = GetRawIndent(prev);
+            if (prevRaw != -1) return prevRaw;
+            prev = prev.PreviousLine;
             count++;
         }
 
-        return Math.Max(prevIndent, nextIndent);
+        return 0;
+    }
+
+    private int GetStructuralIndent(DocumentLine line, int effectiveIndent)
+    {
+        if (line == null) return 0;
+
+        var prev = line.PreviousLine;
+        while (prev != null)
+        {
+            int prevRaw = GetRawIndent(prev);
+            if (prevRaw != -1)
+            {
+                if (prevRaw < effectiveIndent)
+                {
+                    return prevRaw + 1;
+                }
+            }
+            prev = prev.PreviousLine;
+        }
+        return effectiveIndent;
     }
 }

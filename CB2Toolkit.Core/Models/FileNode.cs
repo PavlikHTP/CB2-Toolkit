@@ -5,44 +5,40 @@ namespace CB2Toolkit.Core.Models;
 
 public class FileNode : INotifyPropertyChanged
 {
-    private bool _isSelected;
-    private bool _isExpanded;
-    private bool _isUnsaved;
-    
     public string Key { get; set; } = string.Empty;
     public string FullPath { get; set; } = string.Empty;
     public bool IsDirectory { get; set; }
 
     public bool IsExpanded
     {
-        get => _isExpanded;
+        get;
         set
         {
-            _isExpanded = value;
+            field = value;
             OnPropertyChanged();
         }
     }
 
     public bool IsSelected
     {
-        get => _isSelected;
+        get;
         set
         {
-            _isSelected = value;
+            field = value;
             OnPropertyChanged();
         }
     }
 
     public bool IsUnsaved
     {
-        get => _isUnsaved;
+        get;
         set
         {
-            _isUnsaved = value;
+            field = value;
             OnPropertyChanged();
         }
     }
-    
+
     public List<FileNode> Value { get; set; } = new();
 
     public event PropertyChangedEventHandler? PropertyChanged;

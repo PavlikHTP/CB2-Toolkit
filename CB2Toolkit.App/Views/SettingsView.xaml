@@ -560,7 +560,7 @@
                             KeyDown="HotkeyButton_KeyDown" PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>
 
-                <Grid Margin="0,0,0,24">
+                <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -568,6 +568,30 @@
                     <TextBlock Grid.Column="0" Text="Navigate Forward" Foreground="#9CA3AF" FontSize="13"
                                VerticalAlignment="Center" />
                     <Button x:Name="NavigateForwardHotkeyButton" Grid.Column="1"
+                            Style="{StaticResource HotkeyButtonStyle}" Content="F2" Click="HotkeyButton_Click"
+                            KeyDown="HotkeyButton_KeyDown" PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
+                </Grid>
+                
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Select All" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="SelectAllHotkeyButton" Grid.Column="1"
+                            Style="{StaticResource HotkeyButtonStyle}" Content="F2" Click="HotkeyButton_Click"
+                            KeyDown="HotkeyButton_KeyDown" PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
+                </Grid>
+                
+                <Grid Margin="0,0,0,24">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Console" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="ConsoleHotkeyButton" Grid.Column="1"
                             Style="{StaticResource HotkeyButtonStyle}" Content="F2" Click="HotkeyButton_Click"
                             KeyDown="HotkeyButton_KeyDown" PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>

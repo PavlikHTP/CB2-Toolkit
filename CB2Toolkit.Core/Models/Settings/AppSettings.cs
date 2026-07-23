@@ -25,5 +25,6 @@ public class AppSettings
     public string LastOpenedAngelScriptFilePath { get; set; } = string.Empty;
     public string CustomAngelScriptCompilePath { get; set; } = string.Empty;
     public string UIEditorCompilePath { get; set; } = string.Empty;
-    public HotkeySettings Hotkeys { get; set; } = new();
+    public string UIEditorBackgroundPath { get; set; } = string.Empty;
+    public HotkeySettings Hotkeys { get; } = new();
 }

@@ -4,7 +4,7 @@ using ICSharpCode.AvalonEdit.Document;
 
 namespace CB2Toolkit.Core.Services;
 
-public class EditorHistoryManager
+public class TextHistoryManager
 {
     private readonly TextEditor _editor;
     private readonly Dictionary<string, (Stack<TextChangeHistory> Undo, Stack<TextChangeHistory> Redo)> _filesHistory = new();
@@ -14,7 +14,7 @@ public class EditorHistoryManager
 
     public bool IsSuspended { get; set; }
 
-    public EditorHistoryManager(TextEditor editor)
+    public TextHistoryManager(TextEditor editor)
     {
         _editor = editor;
         _editor.Document.Changing += Document_Changing;
