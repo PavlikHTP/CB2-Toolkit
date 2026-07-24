@@ -24,4 +24,25 @@
       <Folder Include="Fonts\" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Remove="Fonts\Andale Mono.ttf" />
+      <Resource Include="Fonts\Andale Mono.ttf" />
+      <None Remove="Fonts\Courier New.ttf" />
+      <Resource Include="Fonts\Courier New.ttf" />
+      <None Remove="Fonts\Courier Prime.ttf" />
+      <Resource Include="Fonts\Courier Prime.ttf" />
+      <None Remove="Fonts\DS-Digital.TTF" />
+      <Resource Include="Fonts\DS-Digital.TTF" />
+      <None Remove="Fonts\Icons.ttf" />
+      <Resource Include="Fonts\Icons.ttf" />
+      <None Remove="Fonts\Journal.ttf" />
+      <Resource Include="Fonts\Journal.ttf" />
+      <None Remove="Fonts\LektonCode-Regular.ttf" />
+      <Resource Include="Fonts\LektonCode-Regular.ttf" />
+      <None Remove="Fonts\OPPOSans-M.ttf" />
+      <Resource Include="Fonts\OPPOSans-M.ttf" />
+      <None Remove="Fonts\tahoma.ttf" />
+      <Resource Include="Fonts\tahoma.ttf" />
+    </ItemGroup>
+
 </Project>

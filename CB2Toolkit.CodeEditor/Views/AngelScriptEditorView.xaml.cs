@@ -977,7 +977,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
             OpenProject(dialog.FolderName);
         }
     }
-
+    
     private async Task OpenProject(string path)
     {
         SaveCurrentTreeState();

@@ -13,6 +13,8 @@
         <utils:NormalizedToAbsoluteConverter x:Key="NormConverter" />
         <utils:RgbToBrushConverter x:Key="RgbConverter" />
         <utils:PathToAbsoluteImageConverter x:Key="PathConverter" />
+        <utils:FontFamilyConverter x:Key="FontFamilyConverter" />
+        <utils:FontSizeConverter x:Key="FontSizeConverter" />
 
         <Style x:Key="AnimatedBoundingBoxStyle" TargetType="Border">
             <Setter Property="BorderThickness" Value="1.5" />
@@ -298,6 +300,19 @@
             </Setter>
         </Style>
 
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
+            <Setter Property="Background" Value="#4D7CFE" />
+            <Setter Property="Foreground" Value="White" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#3B6CF0" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#2A5AE0" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <Style x:Key="ActionIconButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
             <Setter Property="Padding" Value="6,4" />
             <Setter Property="FontSize" Value="11" />
@@ -306,11 +321,13 @@
 
         <Style TargetType="ScrollBar">
             <Setter Property="Background" Value="#121214" />
+            <Setter Property="MinWidth" Value="12" />
+            <Setter Property="MinHeight" Value="12" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ScrollBar">
-                        <Grid Background="{TemplateBinding Background}">
-                            <Track Name="PART_Track" IsDirectionReversed="True">
+                        <Border Background="{TemplateBinding Background}">
+                            <Track Name="PART_Track">
                                 <Track.Thumb>
                                     <Thumb>
                                         <Thumb.Template>
@@ -321,7 +338,7 @@
                                     </Thumb>
                                 </Track.Thumb>
                             </Track>
-                        </Grid>
+                        </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -442,16 +459,19 @@
                             Click="BackToMenu_Click" Cursor="Hand" />
                     <Button Content="📁 Select Folder" Style="{StaticResource ToolbarButtonStyle}" Margin="0,0,12,0"
                             Click="SelectFolder_Click" Cursor="Hand" />
-                    <Button Content="📥 Import" Style="{StaticResource ToolbarButtonStyle}" Click="ImportUI_Click"
-                            Cursor="Hand" Background="#232329" />
+                    <Button Content="📥 Open" Style="{StaticResource ToolbarButtonStyle}" Click="ImportUI_Click"
+                            Cursor="Hand" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <TextBlock Text="Compile Path:" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,8,0"
                                FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" />
-                    <TextBox x:Name="CompilePathInput" Width="220" VerticalAlignment="Center" Margin="0,0,16,0"
+                    <TextBox x:Name="CompilePathInput" Width="220" VerticalAlignment="Center" Margin="0,0,4,0"
                              Style="{StaticResource ModernTextBoxStyle}" LostFocus="CompilePathInput_LostFocus"
                              KeyDown="CompilePathInput_KeyDown" />
+                    <Button Content="📁" Width="28" Height="28" VerticalAlignment="Center" Margin="0,0,16,0"
+                            Style="{StaticResource ActionIconButtonStyle}" Click="BrowseCompilePath_Click"
+                            Cursor="Hand" ToolTip="Browse for folder" />
                     <TextBlock Text="BG Path:" Foreground="#6B7280" VerticalAlignment="Center" Margin="0,0,8,0"
                                FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" />
                     <TextBox x:Name="BackgroundPathInput" Width="130" VerticalAlignment="Center" Margin="0,0,16,0"
@@ -461,8 +481,8 @@
                                FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" />
                     <TextBox x:Name="OutputNameInput" Text="MyUI" Width="110" VerticalAlignment="Center"
                              Margin="0,0,16,0" Style="{StaticResource ModernTextBoxStyle}" />
-                    <Button Content="✨ Generate UI" Background="#4D7CFE" Foreground="White" Padding="16,8"
-                            Style="{StaticResource ToolbarButtonStyle}" Click="GenerateUI_Click" Cursor="Hand" />
+                    <Button x:Name="GenerateButton" Content="✨ Generate UI" Padding="16,8"
+                            Style="{StaticResource PrimaryButtonStyle}" Click="GenerateUI_Click" Cursor="Hand" />
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -494,7 +514,7 @@
                         BorderThickness="1">
                     <ListBox x:Name="ElementsList" SelectionMode="Extended" Background="Transparent"
                              BorderThickness="0" Padding="8" FontFamily="Segoe UI" FontSize="13"
-                             SelectionChanged="ElementsList_SelectionChanged" MouseDown="ElementsList_MouseDown">
+                             SelectionChanged="ElementsList_SelectionChanged" MouseDown="PreviewBorder_MouseDown">
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                                 <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
@@ -577,17 +597,36 @@
                 </Grid.RowDefinitions>
                 <Border Grid.Row="0" Background="#16161A" CornerRadius="6,6,0,0" BorderBrush="#232329"
                         BorderThickness="1,1,1,0" Padding="14,8">
-                    <TextBlock Text="VISUAL PREVIEW (RIGHT-CLICK TO ADD)" Foreground="#4B5563" FontFamily="Segoe UI"
-                               FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="VISUAL PREVIEW (RIGHT-CLICK TO ADD)"
+                                   Foreground="#4B5563" FontFamily="Segoe UI"
+                                   FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="Zoom:" Foreground="#6B7280" FontFamily="Segoe UI" FontSize="11"
+                                       FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" />
+                             <Slider x:Name="ZoomSlider" Minimum="10" Maximum="2000" Width="100" Value="100"
+                                     Style="{StaticResource ModernSliderStyle}"
+                                     ValueChanged="ZoomSlider_ValueChanged" />
+                            <TextBlock x:Name="ZoomLabel" Text="Fit" Foreground="#9CA3AF" FontFamily="Segoe UI"
+                                       FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        </StackPanel>
+                    </Grid>
                 </Border>
 
                 <Border x:Name="PreviewBorder" Grid.Row="1" Background="#0A0A0C" CornerRadius="0,0,6,6"
                         BorderBrush="#232329" BorderThickness="1" ClipToBounds="True"
-                        MouseDown="ElementsList_MouseDown"
+                        MouseDown="PreviewBorder_MouseDown"
+                        MouseUp="PreviewBorder_MouseUp"
                         MouseLeftButtonDown="PreviewWorkspace_MouseLeftButtonDown"
                         MouseLeftButtonUp="PreviewWorkspace_MouseLeftButtonUp"
                         MouseMove="PreviewWorkspace_MouseMove"
                         MouseRightButtonDown="PreviewWorkspace_MouseRightButtonDown"
+                        MouseWheel="PreviewWorkspace_MouseWheel"
                         SizeChanged="PreviewBorder_SizeChanged"
                         Focusable="True">
                     <Border.ContextMenu>
@@ -614,248 +653,285 @@
                     </Border.ContextMenu>
 
                     <Grid>
-                        <Image Stretch="UniformToFill" IsHitTestVisible="False">
-                            <Image.Source>
-                                <MultiBinding Converter="{StaticResource PathConverter}">
-                                    <Binding Path="Text" ElementName="BackgroundPathInput" />
-                                    <Binding Path="Text" ElementName="CompilePathInput" />
-                                </MultiBinding>
-                            </Image.Source>
-                        </Image>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                        <ItemsControl x:Name="VisualPreviewContainer">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <Canvas x:Name="PreviewWorkspace" Background="Transparent" IsItemsHost="True" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemContainerStyle>
-                                <Style TargetType="ContentPresenter">
-                                    <Setter Property="Canvas.Left">
-                                        <Setter.Value>
-                                            <MultiBinding Converter="{StaticResource NormConverter}">
-                                                <Binding Path="X" />
-                                                <Binding Path="ActualWidth"
-                                                         RelativeSource="{RelativeSource AncestorType=Canvas}" />
-                                            </MultiBinding>
-                                        </Setter.Value>
-                                    </Setter>
-                                    <Setter Property="Canvas.Top">
-                                        <Setter.Value>
-                                            <MultiBinding Converter="{StaticResource NormConverter}">
-                                                <Binding Path="Y" />
-                                                <Binding Path="ActualHeight"
-                                                         RelativeSource="{RelativeSource AncestorType=Canvas}" />
-                                            </MultiBinding>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </ItemsControl.ItemContainerStyle>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid Background="Transparent" Cursor="Hand">
-                                        <Grid.Style>
-                                            <Style TargetType="Grid">
-                                                <Setter Property="Width">
-                                                    <Setter.Value>
-                                                        <MultiBinding Converter="{StaticResource NormConverter}">
-                                                            <Binding Path="Width" />
-                                                            <Binding Path="ActualWidth"
-                                                                     RelativeSource="{RelativeSource AncestorType=Canvas}" />
-                                                        </MultiBinding>
-                                                    </Setter.Value>
-                                                </Setter>
-                                                <Setter Property="Height">
-                                                    <Setter.Value>
-                                                        <MultiBinding Converter="{StaticResource NormConverter}">
-                                                            <Binding Path="Height" />
-                                                            <Binding Path="ActualHeight"
-                                                                     RelativeSource="{RelativeSource AncestorType=Canvas}" />
-                                                        </MultiBinding>
-                                                    </Setter.Value>
-                                                </Setter>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Type}" Value="Text">
-                                                        <Setter Property="Width" Value="Auto" />
-                                                        <Setter Property="Height" Value="Auto" />
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Grid.Style>
+                        <Grid x:Name="PreviewContentRoot" Grid.Row="0" Grid.Column="0"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Background="#0A0A0C"
+                          RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform>
+                            <TransformGroup>
+                                <ScaleTransform x:Name="PreviewScaleTransform" ScaleX="1" ScaleY="1" />
+                                <TranslateTransform x:Name="PreviewTranslateTransform" X="0" Y="0" />
+                            </TransformGroup>
+                        </Grid.RenderTransform>
 
-                                        <Border x:Name="RectVisual" CornerRadius="{Binding Rounded, FallbackValue=0}"
-                                                Visibility="Collapsed">
-                                            <Border.Background>
-                                                <MultiBinding Converter="{StaticResource RgbConverter}">
-                                                    <Binding Path="R" />
-                                                    <Binding Path="G" />
-                                                    <Binding Path="B" />
-                                                    <Binding Path="Opacity" />
+                            <Image Stretch="UniformToFill" IsHitTestVisible="False">
+                                <Image.Source>
+                                    <MultiBinding Converter="{StaticResource PathConverter}">
+                                        <Binding Path="Text" ElementName="BackgroundPathInput" />
+                                        <Binding Path="Text" ElementName="CompilePathInput" />
+                                    </MultiBinding>
+                                </Image.Source>
+                            </Image>
+
+                            <ItemsControl x:Name="VisualPreviewContainer">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas x:Name="PreviewWorkspace" Background="Transparent" IsItemsHost="True" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Canvas.Left">
+                                            <Setter.Value>
+                                                <MultiBinding Converter="{StaticResource NormConverter}">
+                                                    <Binding Path="X" />
+                                                    <Binding Path="ActualWidth"
+                                                             RelativeSource="{RelativeSource AncestorType=Canvas}" />
                                                 </MultiBinding>
-                                            </Border.Background>
-                                        </Border>
-
-                                        <Ellipse x:Name="OvalVisual" Visibility="Collapsed">
-                                            <Ellipse.Fill>
-                                                <MultiBinding Converter="{StaticResource RgbConverter}">
-                                                    <Binding Path="R" />
-                                                    <Binding Path="G" />
-                                                    <Binding Path="B" />
-                                                    <Binding Path="Opacity" />
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter Property="Canvas.Top">
+                                            <Setter.Value>
+                                                <MultiBinding Converter="{StaticResource NormConverter}">
+                                                    <Binding Path="Y" />
+                                                    <Binding Path="ActualHeight"
+                                                             RelativeSource="{RelativeSource AncestorType=Canvas}" />
                                                 </MultiBinding>
-                                            </Ellipse.Fill>
-                                        </Ellipse>
-
-                                        <TextBlock x:Name="TextVisual" Text="{Binding Text}" TextWrapping="Wrap"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   Visibility="Collapsed">
-                                            <TextBlock.Foreground>
-                                                <MultiBinding Converter="{StaticResource RgbConverter}">
-                                                    <Binding Path="R" />
-                                                    <Binding Path="G" />
-                                                    <Binding Path="B" />
-                                                    <Binding Path="Opacity" />
-                                                </MultiBinding>
-                                            </TextBlock.Foreground>
-                                        </TextBlock>
-
-                                        <Grid x:Name="ImageVisual" Visibility="Collapsed">
-                                            <Border BorderBrush="#4D7CFE" BorderThickness="1" Background="#1F2937"
-                                                    Opacity="0.6" />
-                                            <Image Stretch="UniformToFill">
-                                                <Image.Source>
-                                                    <MultiBinding Converter="{StaticResource PathConverter}">
-                                                        <Binding Path="Text" />
-                                                        <Binding Path="Text" ElementName="CompilePathInput" />
-                                                    </MultiBinding>
-                                                </Image.Source>
-                                            </Image>
-                                            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                                                        Background="#B0000000">
-                                                <TextBlock Text="{Binding Text}" Foreground="#9CA3AF" FontSize="10"
-                                                           HorizontalAlignment="Center"
-                                                           TextTrimming="CharacterEllipsis" Margin="4,2" />
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <Grid x:Name="ProgressVisual" Visibility="Collapsed">
-                                            <Border Background="#1F2937" CornerRadius="3" BorderBrush="#374151"
-                                                    BorderThickness="1">
-                                                <Grid>
-                                                    <ProgressBar
-                                                        Value="{Binding MiscValue, FallbackValue=0, TargetNullValue=0}"
-                                                        Minimum="0" Maximum="100" Background="Transparent"
-                                                        BorderThickness="0">
-                                                        <ProgressBar.Foreground>
-                                                            <MultiBinding Converter="{StaticResource RgbConverter}">
-                                                                <Binding Path="R" />
-                                                                <Binding Path="G" />
-                                                                <Binding Path="B" />
-                                                                <Binding Path="Opacity" />
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Background="Transparent" Cursor="Hand">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Width">
+                                                        <Setter.Value>
+                                                            <MultiBinding Converter="{StaticResource NormConverter}">
+                                                                <Binding Path="Width" />
+                                                                <Binding Path="ActualWidth"
+                                                                         RelativeSource="{RelativeSource AncestorType=Canvas}" />
                                                             </MultiBinding>
-                                                        </ProgressBar.Foreground>
-                                                    </ProgressBar>
-                                                    <TextBlock Text="Progress Bar" Foreground="White" FontSize="10"
-                                                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                               FontWeight="SemiBold" />
-                                                </Grid>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Setter Property="Height">
+                                                        <Setter.Value>
+                                                            <MultiBinding Converter="{StaticResource NormConverter}">
+                                                                <Binding Path="Height" />
+                                                                <Binding Path="ActualHeight"
+                                                                         RelativeSource="{RelativeSource AncestorType=Canvas}" />
+                                                            </MultiBinding>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Type}" Value="Text">
+                                                            <Setter Property="Width" Value="Auto" />
+                                                            <Setter Property="Height" Value="Auto" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+
+                                            <Border x:Name="RectVisual" CornerRadius="{Binding Rounded, FallbackValue=0}"
+                                                    Visibility="Collapsed">
+                                                <Border.Background>
+                                                    <MultiBinding Converter="{StaticResource RgbConverter}">
+                                                        <Binding Path="R" />
+                                                        <Binding Path="G" />
+                                                        <Binding Path="B" />
+                                                        <Binding Path="Opacity" />
+                                                    </MultiBinding>
+                                                </Border.Background>
                                             </Border>
+
+                                            <Ellipse x:Name="OvalVisual" Visibility="Collapsed">
+                                                <Ellipse.Fill>
+                                                    <MultiBinding Converter="{StaticResource RgbConverter}">
+                                                        <Binding Path="R" />
+                                                        <Binding Path="G" />
+                                                        <Binding Path="B" />
+                                                        <Binding Path="Opacity" />
+                                                    </MultiBinding>
+                                                </Ellipse.Fill>
+                                            </Ellipse>
+
+                                            <TextBlock x:Name="TextVisual" Text="{Binding Text}" TextWrapping="Wrap"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       Visibility="Collapsed"
+                                                       FontFamily="{Binding Font, Converter={StaticResource FontFamilyConverter}}"
+                                                       FontSize="{Binding Font, Converter={StaticResource FontSizeConverter}}"
+                                                       LineHeight="{Binding Font, Converter={StaticResource FontSizeConverter}}"
+                                                       LineStackingStrategy="BlockLineHeight">
+                                                <TextBlock.Foreground>
+                                                    <MultiBinding Converter="{StaticResource RgbConverter}">
+                                                        <Binding Path="R" />
+                                                        <Binding Path="G" />
+                                                        <Binding Path="B" />
+                                                        <Binding Path="Opacity" />
+                                                    </MultiBinding>
+                                                </TextBlock.Foreground>
+                                            </TextBlock>
+
+                                            <Grid x:Name="ImageVisual" Visibility="Collapsed">
+                                                <Border BorderBrush="#4D7CFE" BorderThickness="1" Background="#1F2937"
+                                                        Opacity="0.6" />
+                                                <Image Stretch="UniformToFill">
+                                                    <Image.Source>
+                                                        <MultiBinding Converter="{StaticResource PathConverter}">
+                                                            <Binding Path="Text" />
+                                                            <Binding Path="Text" ElementName="CompilePathInput" />
+                                                        </MultiBinding>
+                                                    </Image.Source>
+                                                </Image>
+                                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                                                            Background="#B0000000">
+                                                    <TextBlock Text="{Binding Text}" Foreground="#9CA3AF" FontSize="10"
+                                                               HorizontalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" Margin="4,2" />
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <Grid x:Name="ProgressVisual" Visibility="Collapsed">
+                                                <Border Background="#1F2937" CornerRadius="3" BorderBrush="#374151"
+                                                        BorderThickness="1">
+                                                    <Grid>
+                                                        <ProgressBar
+                                                            Value="{Binding MiscValue, FallbackValue=0, TargetNullValue=0}"
+                                                            Minimum="0" Maximum="100" Background="Transparent"
+                                                            BorderThickness="0">
+                                                            <ProgressBar.Foreground>
+                                                                <MultiBinding Converter="{StaticResource RgbConverter}">
+                                                                    <Binding Path="R" />
+                                                                    <Binding Path="G" />
+                                                                    <Binding Path="B" />
+                                                                    <Binding Path="Opacity" />
+                                                                </MultiBinding>
+                                                            </ProgressBar.Foreground>
+                                                        </ProgressBar>
+                                                        <TextBlock Text="Progress Bar" Foreground="White" FontSize="10"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                   FontWeight="SemiBold" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
                                         </Grid>
-                                    </Grid>
-                                    <DataTemplate.Triggers>
-                                        <DataTrigger Binding="{Binding Type}" Value="Rect">
-                                            <Setter TargetName="RectVisual" Property="Visibility" Value="Visible" />
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding Type}" Value="Oval">
-                                            <Setter TargetName="OvalVisual" Property="Visibility" Value="Visible" />
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding Type}" Value="Text">
-                                            <Setter TargetName="TextVisual" Property="Visibility" Value="Visible" />
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding Type}" Value="Image">
-                                            <Setter TargetName="ImageVisual" Property="Visibility" Value="Visible" />
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding Type}" Value="ProgressBar">
-                                            <Setter TargetName="ProgressVisual" Property="Visibility" Value="Visible" />
-                                        </DataTrigger>
-                                    </DataTemplate.Triggers>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding Type}" Value="Rect">
+                                                <Setter TargetName="RectVisual" Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Type}" Value="Oval">
+                                                <Setter TargetName="OvalVisual" Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Type}" Value="Text">
+                                                <Setter TargetName="TextVisual" Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Type}" Value="Image">
+                                                <Setter TargetName="ImageVisual" Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Type}" Value="ProgressBar">
+                                                <Setter TargetName="ProgressVisual" Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
 
-                        <Canvas x:Name="SelectionOverlayCanvas" Background="{x:Null}">
-                            <Grid x:Name="SelectionBox" Visibility="Collapsed" Canvas.Left="0" Canvas.Top="0"
-                                  Width="100" Height="100">
-                                <Border Style="{StaticResource AnimatedBoundingBoxStyle}" IsHitTestVisible="False" />
+                            <Canvas x:Name="SelectionOverlayCanvas" Background="{x:Null}">
+                                <Grid x:Name="SelectionBox" Visibility="Collapsed" Canvas.Left="0" Canvas.Top="0"
+                                      Width="100" Height="100">
+                                    <Border Style="{StaticResource AnimatedBoundingBoxStyle}" IsHitTestVisible="False" />
 
-                                <Thumb x:Name="ResizeNW" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="NW"
-                                       HorizontalAlignment="Left" VerticalAlignment="Top">
-                                    <Thumb.Template>
-                                        <ControlTemplate TargetType="Thumb">
-                                            <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
-                                        </ControlTemplate>
-                                    </Thumb.Template>
-                                </Thumb>
-                                <Thumb x:Name="ResizeNE" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="NE"
-                                       HorizontalAlignment="Right" VerticalAlignment="Top">
-                                    <Thumb.Template>
-                                        <ControlTemplate TargetType="Thumb">
-                                            <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
-                                        </ControlTemplate>
-                                    </Thumb.Template>
-                                </Thumb>
-                                <Thumb x:Name="ResizeSW" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="SW"
-                                       HorizontalAlignment="Left" VerticalAlignment="Bottom">
-                                    <Thumb.Template>
-                                        <ControlTemplate TargetType="Thumb">
-                                            <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
-                                        </ControlTemplate>
-                                    </Thumb.Template>
-                                </Thumb>
-                                <Thumb x:Name="ResizeSE" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="SE"
-                                       HorizontalAlignment="Right" VerticalAlignment="Bottom">
-                                    <Thumb.Template>
-                                        <ControlTemplate TargetType="Thumb">
-                                            <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
-                                        </ControlTemplate>
-                                    </Thumb.Template>
-                                </Thumb>
+                                    <Thumb x:Name="ResizeNW" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="NW"
+                                           HorizontalAlignment="Left" VerticalAlignment="Top">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                    <Thumb x:Name="ResizeNE" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="NE"
+                                           HorizontalAlignment="Right" VerticalAlignment="Top">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                    <Thumb x:Name="ResizeSW" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="SW"
+                                           HorizontalAlignment="Left" VerticalAlignment="Bottom">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                    <Thumb x:Name="ResizeSE" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="SE"
+                                           HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
 
-                                <Thumb x:Name="ResizeN" Cursor="SizeNS" DragDelta="ResizeThumb_DragDelta" Tag="N"
-                                       HorizontalAlignment="Stretch" VerticalAlignment="Top">
-                                    <Thumb.Template>
-                                        <ControlTemplate>
-                                            <Border Background="Transparent" />
-                                        </ControlTemplate>
-                                    </Thumb.Template>
-                                </Thumb>
-                                <Thumb x:Name="ResizeS" Cursor="SizeNS" DragDelta="ResizeThumb_DragDelta" Tag="S"
-                                       HorizontalAlignment="Stretch" VerticalAlignment="Bottom">
-                                    <Thumb.Template>
-                                        <ControlTemplate>
-                                            <Border Background="Transparent" />
-                                        </ControlTemplate>
-                                    </Thumb.Template>
-                                </Thumb>
-                                <Thumb x:Name="ResizeW" Cursor="SizeWE" DragDelta="ResizeThumb_DragDelta" Tag="W"
-                                       HorizontalAlignment="Left" VerticalAlignment="Stretch">
-                                    <Thumb.Template>
-                                        <ControlTemplate>
-                                            <Border Background="Transparent" />
-                                        </ControlTemplate>
-                                    </Thumb.Template>
-                                </Thumb>
-                                <Thumb x:Name="ResizeE" Cursor="SizeWE" DragDelta="ResizeThumb_DragDelta" Tag="E"
-                                       HorizontalAlignment="Right" VerticalAlignment="Stretch">
-                                    <Thumb.Template>
-                                        <ControlTemplate>
-                                            <Border Background="Transparent" />
-                                        </ControlTemplate>
-                                    </Thumb.Template>
-                                </Thumb>
-                            </Grid>
-                        </Canvas>
+                                    <Thumb x:Name="ResizeN" Cursor="SizeNS" DragDelta="ResizeThumb_DragDelta" Tag="N"
+                                           HorizontalAlignment="Stretch" VerticalAlignment="Top">
+                                        <Thumb.Template>
+                                            <ControlTemplate>
+                                                <Border Background="Transparent" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                    <Thumb x:Name="ResizeS" Cursor="SizeNS" DragDelta="ResizeThumb_DragDelta" Tag="S"
+                                           HorizontalAlignment="Stretch" VerticalAlignment="Bottom">
+                                        <Thumb.Template>
+                                            <ControlTemplate>
+                                                <Border Background="Transparent" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                    <Thumb x:Name="ResizeW" Cursor="SizeWE" DragDelta="ResizeThumb_DragDelta" Tag="W"
+                                           HorizontalAlignment="Left" VerticalAlignment="Stretch">
+                                        <Thumb.Template>
+                                            <ControlTemplate>
+                                                <Border Background="Transparent" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                    <Thumb x:Name="ResizeE" Cursor="SizeWE" DragDelta="ResizeThumb_DragDelta" Tag="E"
+                                           HorizontalAlignment="Right" VerticalAlignment="Stretch">
+                                        <Thumb.Template>
+                                            <ControlTemplate>
+                                                <Border Background="Transparent" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Grid>
+                            </Canvas>
 
+                    </Grid>
+
+                        <ScrollBar x:Name="PreviewHScrollBar" Grid.Row="1" Grid.Column="0"
+                                   Orientation="Horizontal" Visibility="Collapsed"
+                                   Minimum="0" Maximum="100" Value="0"
+                                   SmallChange="5" LargeChange="20"
+                                   ValueChanged="PreviewScrollBar_ValueChanged" />
+                        <ScrollBar x:Name="PreviewVScrollBar" Grid.Row="0" Grid.Column="1"
+                                   Orientation="Vertical" Visibility="Collapsed"
+                                   Minimum="0" Maximum="100" Value="0"
+                                   SmallChange="5" LargeChange="20"
+                                   ValueChanged="PreviewScrollBar_ValueChanged" />
+                        <Rectangle Grid.Row="1" Grid.Column="1" Fill="#121214" />
                     </Grid>
                 </Border>
             </Grid>
@@ -916,20 +992,51 @@
                             <Grid Margin="0,0,0,14">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="Width" Foreground="#6B7280" FontSize="11" FontWeight="Bold"
                                                Margin="0,0,0,4" />
-                                    <TextBox Text="{Binding SelectedItem.Width, ElementName=ElementsList}"
+                                    <TextBox x:Name="WidthTextBox"
+                                             Text="{Binding SelectedItem.Width, ElementName=ElementsList}"
                                              KeyDown="PropertyInput_KeyDown"
                                              Style="{StaticResource ModernTextBoxStyle}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4,16,4,0">
+                                    <ToggleButton x:Name="SquareAspectToggle" Width="24" Height="24"
+                                                  ToolTip="Lock square aspect ratio"
+                                                  Click="SquareAspectToggle_Click">
+                                        <ToggleButton.Template>
+                                            <ControlTemplate TargetType="ToggleButton">
+                                                <Border x:Name="BtnBorder" Background="#232329"
+                                                        BorderBrush="#3F3F46" BorderThickness="1" CornerRadius="3"
+                                                        Cursor="Hand">
+                                                    <TextBlock Text="⧉" HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="#9CA3AF" FontSize="13" />
+                                                </Border>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="BtnBorder" Property="Background"
+                                                                Value="#4D7CFE" />
+                                                        <Setter TargetName="BtnBorder" Property="BorderBrush"
+                                                                Value="#4D7CFE" />
+                                                    </Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="BtnBorder" Property="BorderBrush"
+                                                                Value="#52525B" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </ToggleButton.Template>
+                                    </ToggleButton>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Height" Foreground="#6B7280" FontSize="11" FontWeight="Bold"
                                                Margin="0,0,0,4" />
-                                    <TextBox Text="{Binding SelectedItem.Height, ElementName=ElementsList}"
+                                    <TextBox x:Name="HeightTextBox"
+                                             Text="{Binding SelectedItem.Height, ElementName=ElementsList}"
                                              KeyDown="PropertyInput_KeyDown"
                                              Style="{StaticResource ModernTextBoxStyle}" />
                                 </StackPanel>
@@ -1118,6 +1225,7 @@
                                              Style="{StaticResource ModernTextBoxStyle}" />
                                 </StackPanel>
                             </Grid>
+
                         </StackPanel>
                     </ScrollViewer>
                 </Border>

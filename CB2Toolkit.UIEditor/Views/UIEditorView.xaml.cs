@@ -34,12 +34,21 @@ public partial class UIEditorView : LifecycleUserControl
         _resizedElementsData = new();
 
     private (double X, double Y, double Width, double Height) _initialGroupBounds;
+    private UIElementModel _resizingModel;
+    private Point _lastMousePosition;
     private bool _isUpdatingSelection;
     private Point _contextMenuSpawnPoint;
     private readonly UIServiceManager _historyManager;
     private bool _isPickingColor;
-    private UIElementModel _resizingModel;
-    private Point _lastMousePosition;
+    private double _zoomPercent = 100;
+    private double _panX;
+    private double _panY;
+    private bool _isPanning;
+    private Point _panStartPoint;
+    private double _panStartX;
+    private double _panStartY;
+    private bool _isUpdatingScrollbar;
+    private bool _squareAspectLock;
 
     public ObservableCollection<UIElementModel> Elements { get; set; } = new();
 
@@ -61,6 +70,7 @@ public partial class UIEditorView : LifecycleUserControl
         if (!string.IsNullOrEmpty(settings.UIEditorCompilePath))
         {
             CompilePathInput.Text = settings.UIEditorCompilePath;
+            FontService.Instance.Initialize(settings.UIEditorCompilePath);
         }
 
         if (!string.IsNullOrEmpty(settings.UIEditorBackgroundPath))
@@ -88,6 +98,7 @@ public partial class UIEditorView : LifecycleUserControl
     private void SaveCompilePathSetting()
     {
         SettingsService.Instance.Current.UIEditorCompilePath = CompilePathInput.Text;
+        FontService.Instance.Initialize(CompilePathInput.Text);
         _ = SettingsService.Instance.SaveAsync();
     }
 
@@ -135,6 +146,20 @@ public partial class UIEditorView : LifecycleUserControl
         }
     }
 
+    private void BrowseCompilePath_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Select Compile Output Folder"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            CompilePathInput.Text = dialog.FolderName;
+            SaveCompilePathSetting();
+        }
+    }
+
     private void ImportUI_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog
@@ -154,8 +179,25 @@ public partial class UIEditorView : LifecycleUserControl
             {
                 string jsonString = File.ReadAllText(dialog.FileName);
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var loadedElements =
-                    JsonSerializer.Deserialize<ObservableCollection<UIElementModel>>(jsonString, options);
+
+                ObservableCollection<UIElementModel> loadedElements = null;
+
+                try
+                {
+                    var workspace = JsonSerializer.Deserialize<UIWorkspaceData>(jsonString, options);
+                    if (workspace?.Elements != null)
+                    {
+                        loadedElements = workspace.Elements;
+                        var settings = SettingsService.Instance.Current;
+                        settings.UIEditorRefWidth = workspace.RefWidth > 0 ? workspace.RefWidth : 1920;
+                        settings.UIEditorRefHeight = workspace.RefHeight > 0 ? workspace.RefHeight : 1080;
+                        _ = SettingsService.Instance.SaveAsync();
+                    }
+                }
+                catch
+                {
+                    loadedElements = JsonSerializer.Deserialize<ObservableCollection<UIElementModel>>(jsonString, options);
+                }
 
                 if (loadedElements != null)
                 {
@@ -273,8 +315,19 @@ public partial class UIEditorView : LifecycleUserControl
         RenameSelectedGroup(GroupNameTextBox.Text);
     }
 
-    private void ElementsList_MouseDown(object sender, MouseButtonEventArgs e)
+    private void PreviewBorder_MouseDown(object sender, MouseButtonEventArgs e)
     {
+        if (e.ChangedButton == MouseButton.Middle)
+        {
+            PreviewBorder.CaptureMouse();
+            _isPanning = true;
+            _panStartPoint = e.GetPosition(PreviewBorder);
+            _panStartX = _panX;
+            _panStartY = _panY;
+            e.Handled = true;
+            return;
+        }
+
         if (e.ChangedButton != MouseButton.Left) return;
 
         if (e.OriginalSource == ElementsList ||
@@ -318,13 +371,13 @@ public partial class UIEditorView : LifecycleUserControl
 
     private void GetContextMenuSpawnPosition(out double normX, out double normY)
     {
-        double containerWidth = PreviewBorder.ActualWidth;
-        double containerHeight = PreviewBorder.ActualHeight;
+        double cw = ContainerWidth;
+        double ch = ContainerHeight;
 
-        if (containerWidth > 0 && containerHeight > 0)
+        if (cw > 0 && ch > 0)
         {
-            normX = Math.Clamp(_contextMenuSpawnPoint.X / containerWidth, 0.0, 1.0);
-            normY = Math.Clamp(_contextMenuSpawnPoint.Y / containerHeight, 0.0, 1.0);
+            normX = Math.Clamp(_contextMenuSpawnPoint.X / cw, 0.0, 1.0);
+            normY = Math.Clamp(_contextMenuSpawnPoint.Y / ch, 0.0, 1.0);
         }
         else
         {
@@ -335,13 +388,13 @@ public partial class UIEditorView : LifecycleUserControl
 
     private void PreviewWorkspace_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
-        _contextMenuSpawnPoint = e.GetPosition(PreviewBorder);
+        _contextMenuSpawnPoint = e.GetPosition(PreviewContentRoot);
 
-        var hitResult = VisualTreeHelper.HitTest(PreviewBorder, e.GetPosition(PreviewBorder));
+        var hitResult = VisualTreeHelper.HitTest(PreviewContentRoot, e.GetPosition(PreviewContentRoot));
         if (hitResult != null)
         {
             DependencyObject depObj = hitResult.VisualHit;
-            while (depObj != null && depObj != PreviewBorder)
+            while (depObj != null && depObj != PreviewContentRoot)
             {
                 if (depObj is FrameworkElement fe && fe.DataContext is UIElementModel model)
                 {
@@ -464,11 +517,11 @@ public partial class UIEditorView : LifecycleUserControl
 
         if (_isPickingColor)
         {
-            var hit = VisualTreeHelper.HitTest(PreviewBorder, e.GetPosition(PreviewBorder));
+            var hit = VisualTreeHelper.HitTest(PreviewContentRoot, e.GetPosition(PreviewContentRoot));
             if (hit != null)
             {
                 DependencyObject dObj = hit.VisualHit;
-                while (dObj != null && dObj != PreviewBorder)
+                while (dObj != null && dObj != PreviewContentRoot)
                 {
                     if (dObj is FrameworkElement fe && fe.DataContext is UIElementModel targetModel)
                     {
@@ -494,7 +547,7 @@ public partial class UIEditorView : LifecycleUserControl
             return;
         }
 
-        var hitResult = VisualTreeHelper.HitTest(PreviewBorder, e.GetPosition(PreviewBorder));
+        var hitResult = VisualTreeHelper.HitTest(PreviewContentRoot, e.GetPosition(PreviewContentRoot));
         if (hitResult == null)
         {
             ElementsList.UnselectAll();
@@ -504,7 +557,7 @@ public partial class UIEditorView : LifecycleUserControl
         DependencyObject depObj = hitResult.VisualHit;
         bool elementHit = false;
 
-        while (depObj != null && depObj != PreviewBorder)
+        while (depObj != null && depObj != PreviewContentRoot)
         {
             if (depObj is Thumb)
             {
@@ -566,20 +619,20 @@ public partial class UIEditorView : LifecycleUserControl
 
                 _draggedElement = model;
                 _isDragging = true;
-                _dragStartPoint = e.GetPosition(PreviewBorder);
+                _dragStartPoint = e.GetPosition(PreviewContentRoot);
 
                 _draggedElementsData.Clear();
-                double containerWidth = PreviewBorder.ActualWidth;
-                double containerHeight = PreviewBorder.ActualHeight;
+        double containerWidth = ContainerWidth;
+        double containerHeight = ContainerHeight;
 
-                foreach (var item in ElementsList.SelectedItems)
-                {
-                    if (item is UIElementModel el)
-                    {
-                        double normElementWidth = el.Width;
-                        double normElementHeight = el.Height;
+        foreach (var item in ElementsList.SelectedItems)
+        {
+            if (item is UIElementModel el)
+            {
+                double normElementWidth = el.Width;
+                double normElementHeight = el.Height;
 
-                        if (el.Type == ElementType.Text && containerWidth > 0 && containerHeight > 0)
+                if (el.Type == ElementType.Text && containerWidth > 0 && containerHeight > 0)
                         {
                             if (VisualPreviewContainer.ItemContainerGenerator.ContainerFromItem(el) is FrameworkElement
                                 container)
@@ -611,6 +664,16 @@ public partial class UIEditorView : LifecycleUserControl
         }
     }
 
+    private void PreviewBorder_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_isPanning)
+        {
+            PreviewBorder.ReleaseMouseCapture();
+            _isPanning = false;
+            e.Handled = true;
+        }
+    }
+
     private void PreviewWorkspace_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (_isDragging)
@@ -620,23 +683,42 @@ public partial class UIEditorView : LifecycleUserControl
             _draggedElement = null;
             _draggedElementsData.Clear();
         }
+        if (_isPanning)
+        {
+            PreviewBorder.ReleaseMouseCapture();
+            _isPanning = false;
+        }
     }
 
     private void PreviewWorkspace_MouseMove(object sender, MouseEventArgs e)
     {
+        if (_isPanning)
+        {
+            Point current = e.GetPosition(PreviewBorder);
+            double dx = current.X - _panStartPoint.X;
+            double dy = current.Y - _panStartPoint.Y;
+            _panX = _panStartX + dx;
+            _panY = _panStartY + dy;
+            ClampPan();
+            PreviewTranslateTransform.X = _panX;
+            PreviewTranslateTransform.Y = _panY;
+            UpdateScrollbars();
+            return;
+        }
+
         if (_isDragging && _draggedElement != null)
         {
-            double containerWidth = PreviewBorder.ActualWidth;
-            double containerHeight = PreviewBorder.ActualHeight;
+            double cw = ContainerWidth;
+            double ch = ContainerHeight;
 
-            if (containerWidth == 0 || containerHeight == 0) return;
+            if (cw <= 0 || ch <= 0) return;
 
-            Point currentPoint = e.GetPosition(PreviewBorder);
+            Point currentPoint = e.GetPosition(PreviewContentRoot);
             double deltaX = currentPoint.X - _dragStartPoint.X;
             double deltaY = currentPoint.Y - _dragStartPoint.Y;
 
-            double normDeltaX = deltaX / containerWidth;
-            double normDeltaY = deltaY / containerHeight;
+            double normDeltaX = deltaX / cw;
+            double normDeltaY = deltaY / ch;
 
             double minAllowedDeltaX = double.MinValue;
             double maxAllowedDeltaX = double.MaxValue;
@@ -648,10 +730,10 @@ public partial class UIEditorView : LifecycleUserControl
                 var (origX, origY, normElementWidth, normElementHeight) = kvp.Value;
 
                 double minXDelta = -origX;
-                double maxXDelta = Math.Max(0.0, 1.0 - normElementWidth) - origX;
+                double maxXDelta = (1.0 - normElementWidth) - origX;
 
                 double minYDelta = -origY;
-                double maxYDelta = Math.Max(0.0, 1.0 - normElementHeight) - origY;
+                double maxYDelta = (1.0 - normElementHeight) - origY;
 
                 if (minXDelta > minAllowedDeltaX) minAllowedDeltaX = minXDelta;
                 if (maxXDelta < maxAllowedDeltaX) maxAllowedDeltaX = maxXDelta;
@@ -707,6 +789,26 @@ public partial class UIEditorView : LifecycleUserControl
                 _historyManager.SaveState();
                 BindingExpression be = textBox.GetBindingExpression(TextBox.TextProperty);
                 be?.UpdateSource();
+
+                if (_squareAspectLock && ElementsList.SelectedItem is UIElementModel selected)
+                {
+                    double cw = ContainerWidth;
+                    double ch = ContainerHeight;
+                    if (cw > 0 && ch > 0)
+                    {
+                        if (sender == WidthTextBox)
+                        {
+                            double h = selected.Width * (cw / ch);
+                            selected.Height = Math.Round(h, 4);
+                        }
+                        else if (sender == HeightTextBox)
+                        {
+                            double w = selected.Height * (ch / cw);
+                            selected.Width = Math.Round(w, 4);
+                        }
+                    }
+                }
+
                 Keyboard.ClearFocus();
                 Dispatcher.InvokeAsync(UpdateSelectionBox);
             }
@@ -779,15 +881,15 @@ public partial class UIEditorView : LifecycleUserControl
 
         if (sender is Thumb thumb)
         {
-            double containerWidth = PreviewBorder.ActualWidth;
-            double containerHeight = PreviewBorder.ActualHeight;
+            double cw = ContainerWidth;
+            double ch = ContainerHeight;
 
-            if (containerWidth <= 0 || containerHeight <= 0) return;
+            if (cw <= 0 || ch <= 0) return;
 
             if (_resizingModel == null)
             {
                 _resizingModel = ElementsList.SelectedItems[0] as UIElementModel;
-                _lastMousePosition = Mouse.GetPosition(PreviewBorder);
+                _lastMousePosition = Mouse.GetPosition(PreviewContentRoot);
                 _resizedElementsData.Clear();
 
                 var targetElements = ElementsList.SelectedItems.Cast<UIElementModel>().ToList();
@@ -808,8 +910,8 @@ public partial class UIEditorView : LifecycleUserControl
                             var grid = VisualTreeHelper.GetChild(container, 0) as FrameworkElement;
                             if (grid != null && grid.ActualWidth > 0)
                             {
-                                normW = grid.ActualWidth / containerWidth;
-                                normH = grid.ActualHeight / containerHeight;
+                                normW = grid.ActualWidth / cw;
+                                normH = grid.ActualHeight / ch;
                             }
                         }
                     }
@@ -837,9 +939,9 @@ public partial class UIEditorView : LifecycleUserControl
             string direction = thumb.Tag as string;
             if (string.IsNullOrEmpty(direction)) return;
 
-            Point currentMousePosition = Mouse.GetPosition(PreviewBorder);
-            double totalNormDeltaX = (currentMousePosition.X - _lastMousePosition.X) / containerWidth;
-            double totalNormDeltaY = (currentMousePosition.Y - _lastMousePosition.Y) / containerHeight;
+            Point currentMousePosition = Mouse.GetPosition(PreviewContentRoot);
+            double deltaPx = currentMousePosition.X - _lastMousePosition.X;
+            double deltaPy = currentMousePosition.Y - _lastMousePosition.Y;
 
             double initialRight = _initialGroupBounds.X + _initialGroupBounds.Width;
             double initialBottom = _initialGroupBounds.Y + _initialGroupBounds.Height;
@@ -851,24 +953,28 @@ public partial class UIEditorView : LifecycleUserControl
 
             if (direction.Contains("W"))
             {
-                newGroupX = Math.Clamp(_initialGroupBounds.X + totalNormDeltaX, 0.0, initialRight - 0.01);
+                double normDeltaX = deltaPx / cw;
+                newGroupX = Math.Clamp(_initialGroupBounds.X + normDeltaX, 0.0, initialRight - 0.01);
                 newGroupWidth = Math.Max(0.01, initialRight - newGroupX);
             }
             else if (direction.Contains("E"))
             {
-                newGroupWidth = Math.Clamp(_initialGroupBounds.Width + totalNormDeltaX, 0.01,
-                    1.0 - _initialGroupBounds.X);
+                double maxW = 1.0 - _initialGroupBounds.X;
+                double normDeltaW = deltaPx / cw;
+                newGroupWidth = Math.Clamp(_initialGroupBounds.Width + normDeltaW, 0.01, maxW);
             }
 
             if (direction.Contains("N"))
             {
-                newGroupY = Math.Clamp(_initialGroupBounds.Y + totalNormDeltaY, 0.0, initialBottom - 0.01);
+                double normDeltaY = deltaPy / ch;
+                newGroupY = Math.Clamp(_initialGroupBounds.Y + normDeltaY, 0.0, initialBottom - 0.01);
                 newGroupHeight = Math.Max(0.01, initialBottom - newGroupY);
             }
             else if (direction.Contains("S"))
             {
-                newGroupHeight = Math.Clamp(_initialGroupBounds.Height + totalNormDeltaY, 0.01,
-                    1.0 - _initialGroupBounds.Y);
+                double maxH = 1.0 - _initialGroupBounds.Y;
+                double normDeltaH = deltaPy / ch;
+                newGroupHeight = Math.Clamp(_initialGroupBounds.Height + normDeltaH, 0.01, maxH);
             }
 
             double scaleX = _initialGroupBounds.Width > 0 ? newGroupWidth / _initialGroupBounds.Width : 1.0;
@@ -900,7 +1006,203 @@ public partial class UIEditorView : LifecycleUserControl
 
     private void PreviewBorder_SizeChanged(object sender, SizeChangedEventArgs e)
     {
+        UpdatePreviewScale();
+        RefreshFontForViewport();
         UpdateSelectionBox();
+    }
+
+    private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        _zoomPercent = e.NewValue;
+        if (ZoomLabel != null)
+        {
+            ZoomLabel.Text = _zoomPercent >= 100
+                ? $"{(int)_zoomPercent}%"
+                : $"{_zoomPercent:F0}%";
+        }
+        UpdatePreviewScale();
+        RefreshFontForViewport();
+    }
+
+    private void PreviewWorkspace_MouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        {
+            double delta = e.Delta > 0 ? 10 : -10;
+            double newValue = Math.Clamp(ZoomSlider.Value + delta, ZoomSlider.Minimum, ZoomSlider.Maximum);
+            ZoomSlider.Value = newValue;
+            e.Handled = true;
+        }
+    }
+
+    private void RefreshFontForViewport()
+    {
+        int refH = SettingsService.Instance.Current.UIEditorRefHeight;
+        if (refH <= 0) refH = 1080;
+        FontService.Instance.PreviewHeight = refH * 0.5;
+        FontService.Instance.InvalidateCache();
+        Dispatcher.InvokeAsync(RefreshFontBindings);
+    }
+
+    private void UpdatePreviewScale()
+    {
+        if (PreviewBorder == null || PreviewContentRoot == null || PreviewScaleTransform == null) return;
+
+        double availableWidth = PreviewBorder.ActualWidth;
+        double availableHeight = PreviewBorder.ActualHeight;
+
+        if (availableWidth <= 0 || availableHeight <= 0) return;
+
+        int refW = SettingsService.Instance.Current.UIEditorRefWidth;
+        int refH = SettingsService.Instance.Current.UIEditorRefHeight;
+        if (refW <= 0) refW = 1920;
+        if (refH <= 0) refH = 1080;
+
+        double aspectRatio = (double)refW / refH;
+
+        double fitWidth = availableWidth;
+        double fitHeight = fitWidth / aspectRatio;
+
+        if (fitHeight > availableHeight)
+        {
+            fitHeight = availableHeight;
+            fitWidth = fitHeight * aspectRatio;
+        }
+
+        PreviewContentRoot.Width = refW * 0.5;
+        PreviewContentRoot.Height = refH * 0.5;
+
+        double fitScale = fitWidth / refW;
+        double scale = fitScale * (_zoomPercent / 100.0);
+
+        PreviewScaleTransform.ScaleX = scale;
+        PreviewScaleTransform.ScaleY = scale;
+
+        ClampPan();
+        PreviewTranslateTransform.X = _panX;
+        PreviewTranslateTransform.Y = _panY;
+
+        UpdateScrollbars();
+    }
+
+    private double ContainerWidth => PreviewContentRoot.ActualWidth;
+    private double ContainerHeight => PreviewContentRoot.ActualHeight;
+
+    private void ClampPan()
+    {
+        double availableWidth = PreviewBorder.ActualWidth;
+        double availableHeight = PreviewBorder.ActualHeight;
+        double scale = PreviewScaleTransform.ScaleX;
+        double contentW = PreviewContentRoot.Width * scale;
+        double contentH = PreviewContentRoot.Height * scale;
+
+        double maxPanX = contentW > availableWidth ? (contentW - availableWidth) / 2.0 : 0;
+        double maxPanY = contentH > availableHeight ? (contentH - availableHeight) / 2.0 : 0;
+
+        _panX = Math.Clamp(_panX, -maxPanX, maxPanX);
+        _panY = Math.Clamp(_panY, -maxPanY, maxPanY);
+    }
+
+    private void UpdateScrollbars()
+    {
+        if (PreviewBorder == null || PreviewContentRoot == null || PreviewScaleTransform == null) return;
+
+        double availableWidth = PreviewBorder.ActualWidth;
+        double availableHeight = PreviewBorder.ActualHeight;
+        double scale = PreviewScaleTransform.ScaleX;
+        double contentW = PreviewContentRoot.Width * scale;
+        double contentH = PreviewContentRoot.Height * scale;
+
+        const double scrollRange = 1000;
+
+        _isUpdatingScrollbar = true;
+
+        if (contentW > availableWidth && availableWidth > 0)
+        {
+            double maxPanX = (contentW - availableWidth) / 2.0;
+            PreviewHScrollBar.Visibility = Visibility.Visible;
+            PreviewHScrollBar.Minimum = 0;
+            PreviewHScrollBar.Maximum = scrollRange;
+            PreviewHScrollBar.ViewportSize = scrollRange * (availableWidth / contentW);
+            PreviewHScrollBar.Value = (scrollRange / 2.0) - (_panX / maxPanX) * (scrollRange / 2.0);
+        }
+        else
+        {
+            PreviewHScrollBar.Visibility = Visibility.Collapsed;
+        }
+
+        if (contentH > availableHeight && availableHeight > 0)
+        {
+            double maxPanY = (contentH - availableHeight) / 2.0;
+            PreviewVScrollBar.Visibility = Visibility.Visible;
+            PreviewVScrollBar.Minimum = 0;
+            PreviewVScrollBar.Maximum = scrollRange;
+            PreviewVScrollBar.ViewportSize = scrollRange * (availableHeight / contentH);
+            PreviewVScrollBar.Value = (scrollRange / 2.0) + (_panY / maxPanY) * (scrollRange / 2.0);
+        }
+        else
+        {
+            PreviewVScrollBar.Visibility = Visibility.Collapsed;
+        }
+
+        _isUpdatingScrollbar = false;
+    }
+
+    private void PreviewScrollBar_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isUpdatingScrollbar) return;
+        if (PreviewBorder == null || PreviewContentRoot == null || PreviewScaleTransform == null) return;
+
+        double availableWidth = PreviewBorder.ActualWidth;
+        double availableHeight = PreviewBorder.ActualHeight;
+        double scale = PreviewScaleTransform.ScaleX;
+        double contentW = PreviewContentRoot.Width * scale;
+        double contentH = PreviewContentRoot.Height * scale;
+        const double scrollRange = 1000;
+
+        if (sender == PreviewHScrollBar && contentW > availableWidth)
+        {
+            double maxPanX = (contentW - availableWidth) / 2.0;
+            _panX = -((e.NewValue - scrollRange / 2.0) / (scrollRange / 2.0) * maxPanX);
+            ClampPan();
+            PreviewTranslateTransform.X = _panX;
+        }
+        else if (sender == PreviewVScrollBar && contentH > availableHeight)
+        {
+            double maxPanY = (contentH - availableHeight) / 2.0;
+            _panY = (e.NewValue - scrollRange / 2.0) / (scrollRange / 2.0) * maxPanY;
+            ClampPan();
+            PreviewTranslateTransform.Y = _panY;
+        }
+    }
+
+    private void SquareAspectToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _squareAspectLock = SquareAspectToggle.IsChecked == true;
+    }
+
+    private void RefreshFontBindings()
+    {
+        foreach (var item in VisualPreviewContainer.Items)
+        {
+            if (VisualPreviewContainer.ItemContainerGenerator.ContainerFromItem(item) is ContentPresenter container)
+                RefreshFontBindingsRecursive(container);
+        }
+    }
+
+    private void RefreshFontBindingsRecursive(DependencyObject element)
+    {
+        if (element == null) return;
+
+        if (element is TextBlock tb)
+        {
+            BindingOperations.GetBindingExpressionBase(tb, TextBlock.FontSizeProperty)?.UpdateTarget();
+            BindingOperations.GetBindingExpressionBase(tb, TextBlock.FontFamilyProperty)?.UpdateTarget();
+        }
+
+        int count = VisualTreeHelper.GetChildrenCount(element);
+        for (int i = 0; i < count; i++)
+            RefreshFontBindingsRecursive(VisualTreeHelper.GetChild(element, i));
     }
 
     private void UpdateSelectionBox()
@@ -911,10 +1213,10 @@ public partial class UIEditorView : LifecycleUserControl
             return;
         }
 
-        double containerWidth = PreviewBorder.ActualWidth;
-        double containerHeight = PreviewBorder.ActualHeight;
+        double cw = ContainerWidth;
+        double ch = ContainerHeight;
 
-        if (containerWidth <= 0 || containerHeight <= 0) return;
+        if (cw <= 0 || ch <= 0) return;
 
         double minX = double.MaxValue;
         double minY = double.MaxValue;
@@ -933,8 +1235,8 @@ public partial class UIEditorView : LifecycleUserControl
                     var grid = VisualTreeHelper.GetChild(container, 0) as FrameworkElement;
                     if (grid != null && grid.ActualWidth > 0)
                     {
-                        normW = grid.ActualWidth / containerWidth;
-                        normH = grid.ActualHeight / containerHeight;
+                        normW = grid.ActualWidth / cw;
+                        normH = grid.ActualHeight / ch;
                     }
                 }
             }
@@ -945,10 +1247,10 @@ public partial class UIEditorView : LifecycleUserControl
             if (el.Y + normH > maxB) maxB = el.Y + normH;
         }
 
-        Canvas.SetLeft(SelectionBox, minX * containerWidth);
-        Canvas.SetTop(SelectionBox, minY * containerHeight);
-        SelectionBox.Width = (maxR - minX) * containerWidth;
-        SelectionBox.Height = (maxB - minY) * containerHeight;
+        Canvas.SetLeft(SelectionBox, minX * cw);
+        Canvas.SetTop(SelectionBox, minY * ch);
+        SelectionBox.Width = (maxR - minX) * cw;
+        SelectionBox.Height = (maxB - minY) * ch;
         SelectionBox.Visibility = Visibility.Visible;
 
         UpdateThumbsSize(SelectionBox.Width, SelectionBox.Height);
@@ -957,8 +1259,14 @@ public partial class UIEditorView : LifecycleUserControl
     private void UpdateThumbsSize(double boxWidth, double boxHeight)
     {
         double minDim = Math.Min(boxWidth, boxHeight);
-        double cornerSize = minDim < 25 ? 4 : (minDim < 50 ? 5 : 6);
-        double edgeThickness = minDim < 25 ? 2 : (minDim < 50 ? 3 : 4);
+        double scale = PreviewScaleTransform.ScaleX;
+        if (scale < 0.1) scale = 0.1;
+
+        double baseCornerSize = minDim < 25 ? 4 : (minDim < 50 ? 5 : 6);
+        double baseEdgeThickness = minDim < 25 ? 2 : (minDim < 50 ? 3 : 4);
+
+        double cornerSize = Math.Max(baseCornerSize / scale, 3);
+        double edgeThickness = Math.Max(baseEdgeThickness / scale, 1.5);
         double offset = -cornerSize / 2.0;
 
         ResizeNW.Width = cornerSize;
@@ -994,16 +1302,20 @@ public partial class UIEditorView : LifecycleUserControl
         }
     }
 
-    private async void CompileUI()
-{
-    if (string.IsNullOrWhiteSpace(CompilePathInput.Text) || string.IsNullOrWhiteSpace(OutputNameInput.Text))
+    private bool CompileUI()
     {
-        LoggerService.Instance.LogWarn("Compile path or output file name is empty.");
-        return;
-    }
+        if (string.IsNullOrWhiteSpace(CompilePathInput.Text) || string.IsNullOrWhiteSpace(OutputNameInput.Text))
+        {
+            LoggerService.Instance.LogWarn("Compile path or output file name is empty.");
+            return false;
+        }
 
-    try
-    {
+        int refW = SettingsService.Instance.Current.UIEditorRefWidth;
+        int refH = SettingsService.Instance.Current.UIEditorRefHeight;
+        if (refW <= 0) refW = 1920;
+        if (refH <= 0) refH = 1080;
+        double widthScale = refW / (double)Math.Min(refW, refH);
+
         string baseFileName = Path.GetFileNameWithoutExtension(OutputNameInput.Text.Trim());
         string asFileName = baseFileName + ".as";
         string jsonFileName = baseFileName + ".json";
@@ -1011,62 +1323,25 @@ public partial class UIEditorView : LifecycleUserControl
         string outputPath = Path.Combine(CompilePathInput.Text, asFileName);
         string jsonOutputPath = Path.Combine(CompilePathInput.Text, jsonFileName);
 
-        StringBuilder sb = new StringBuilder();
+        var sb = new StringBuilder();
 
-        sb.AppendLine();
-        sb.AppendLine("namespace UI");
+        sb.AppendLine($"namespace {baseFileName}");
         sb.AppendLine("{");
 
         foreach (var el in Elements)
         {
-            sb.AppendLine($"    GUIElement[] {el.Name};");
+            sb.AppendLine($"    GUIElement {el.Name};");
         }
 
-        sb.AppendLine("    bool[] states;");
-        sb.AppendLine();
-
-        sb.AppendLine("    void Load(uint count)");
+        sb.AppendLine("    void Show(Player player)");
         sb.AppendLine("    {");
-        foreach (var el in Elements)
-        {
-            sb.AppendLine($"        {el.Name}.resize(count);");
-        }
-
-        sb.AppendLine("        states.resize(count);");
-        sb.AppendLine("        for(uint i = 0; i < count; i++) states[i] = false;");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-
-        sb.AppendLine("    void Unload()");
-        sb.AppendLine("    {");
-        sb.AppendLine("        for(uint i = 0; i < states.size(); i++) { if(states[i]) Hide(i); }");
-        foreach (var el in Elements)
-        {
-            sb.AppendLine($"        {el.Name}.resize(0);");
-        }
-
-        sb.AppendLine("        states.resize(0);");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-
-        sb.AppendLine("    void Toggle(Player player, int idx)");
-        sb.AppendLine("    {");
-        sb.AppendLine("        if (states[idx]) Hide(idx);");
-        sb.AppendLine("        else Show(player, idx);");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-
-        sb.AppendLine("    void Show(Player player, int idx)");
-        sb.AppendLine("    {");
-        sb.AppendLine("        Graphics gfx;");
-        sb.AppendLine("        Server srv;");
 
         foreach (var el in Elements)
         {
             sb.AppendLine();
             string invariantX = el.X.ToString("F3", CultureInfo.InvariantCulture);
             string invariantY = el.Y.ToString("F3", CultureInfo.InvariantCulture);
-            string invariantW = el.Width.ToString("F3", CultureInfo.InvariantCulture);
+            string invariantW = (el.Width * widthScale).ToString("F3", CultureInfo.InvariantCulture);
             string invariantH = el.Height.ToString("F3", CultureInfo.InvariantCulture);
             string invariantOpacity = el.Opacity.ToString("F4", CultureInfo.InvariantCulture);
 
@@ -1074,67 +1349,73 @@ public partial class UIEditorView : LifecycleUserControl
             switch (el.Type)
             {
                 case ElementType.Rect:
-                    call = $"gfx.CreateRect(player, {invariantX}, {invariantY}, {invariantW}, {invariantH})";
+                    call = $"graphics.CreateRect(player, {invariantX}, {invariantY}, {invariantW}, {invariantH})";
                     break;
                 case ElementType.Oval:
-                    call = $"gfx.CreateOval(player, {invariantX}, {invariantY}, {invariantW}, {invariantH})";
+                    call = $"graphics.CreateOval(player, {invariantX}, {invariantY}, {invariantW}, {invariantH})";
                     break;
                 case ElementType.Text:
-                    call = $"gfx.CreateText(player, {(int)el.Font}, \"{el.Text}\", {invariantX}, {invariantY}, false)";
+                    call = $"graphics.CreateText(player, {(int)el.Font}, \"{el.Text}\", {invariantX}, {invariantY}, false)";
                     break;
                 case ElementType.Image:
-                    call = $"gfx.CreateImage(player, \"{el.Text}\", {invariantX}, {invariantY}, {invariantW}, {invariantH})";
+                    call = $"graphics.CreateImage(player, \"{el.Text}\", {invariantX}, {invariantY}, {invariantW}, {invariantH})";
                     break;
                 case ElementType.ProgressBar:
                     string pTime = string.IsNullOrWhiteSpace(el.MiscValue) ? "5.0" : el.MiscValue;
-                    call = $"gfx.CreateProgressBar(player, {pTime}, {invariantX}, {invariantY}, {invariantW}, {invariantH})";
+                    call = $"graphics.CreateProgressBar(player, {pTime}, {invariantX}, {invariantY}, {invariantW}, {invariantH})";
                     break;
             }
 
-            sb.AppendLine($"        {el.Name}[idx] = {call};");
-            sb.AppendLine($"        {el.Name}[idx].SetColor({el.R}, {el.G}, {el.B});");
-            sb.AppendLine($"        {el.Name}[idx].SetOpacity({invariantOpacity}, 0.1f);");
-
-            if (el.Type == ElementType.Text)
-            {
-                sb.AppendLine($"        {el.Name}[idx].SetScale({invariantW}, {invariantH});");
-            }
+            sb.AppendLine($"        {el.Name} = {call};");
+            sb.AppendLine($"        {el.Name}.SetColor({el.R}, {el.G}, {el.B});");
+            sb.AppendLine($"        {el.Name}.SetOpacity({invariantOpacity}, 0.1f);");
+            sb.AppendLine($"        {el.Name}.SetAspect(true);");
 
             if (!string.IsNullOrWhiteSpace(el.MiscValue) && el.Type != ElementType.ProgressBar)
             {
-                sb.AppendLine($"        {el.Name}[idx].SetCallback(\"{el.MiscValue}\");");
+                sb.AppendLine($"        {el.Name}.SetCallback(\"{el.MiscValue}\");");
             }
         }
 
-        sb.AppendLine();
-        sb.AppendLine("        states[idx] = true;");
         sb.AppendLine("    }");
         sb.AppendLine();
 
-        sb.AppendLine("    void Hide(int idx)");
+        sb.AppendLine("    void Hide()");
         sb.AppendLine("    {");
         foreach (var el in Elements)
         {
-            sb.AppendLine($"        {el.Name}[idx].Remove();");
+            sb.AppendLine($"        {el.Name}.Remove();");
         }
 
-        sb.AppendLine("        states[idx] = false;");
         sb.AppendLine("    }");
         sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine($"void OnInitialize()");
+        sb.AppendLine("{");
+        sb.AppendLine($"    {baseFileName}::Show(NULL);");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine($"void OnTerminate()");
+        sb.AppendLine("{");
+        sb.AppendLine($"    {baseFileName}::Hide();");
+        sb.AppendLine("}");
 
+        var workspace = new UIWorkspaceData
+        {
+            RefWidth = refW,
+            RefHeight = refH,
+            SquareViewport = false,
+            Elements = Elements
+        };
         var options = new JsonSerializerOptions { WriteIndented = true };
-        string jsonString = JsonSerializer.Serialize(Elements, options);
+        string jsonString = JsonSerializer.Serialize(workspace, options);
 
-        await File.WriteAllTextAsync(outputPath, sb.ToString(), Encoding.UTF8);
-        await File.WriteAllTextAsync(jsonOutputPath, jsonString, Encoding.UTF8);
+        File.WriteAllText(outputPath, sb.ToString(), Encoding.UTF8);
+        File.WriteAllText(jsonOutputPath, jsonString, Encoding.UTF8);
 
         LoggerService.Instance.LogInfo($"UI compiled successfully to {outputPath}");
+        return true;
     }
-    catch (Exception ex)
-    {
-        LoggerService.Instance.LogError($"Compilation failed: {ex.Message}");
-    }
-}
 
     private void HandleInputEvent(KeyEventArgs e)
     {
@@ -1290,9 +1571,25 @@ public partial class UIEditorView : LifecycleUserControl
         CollectionViewSource.GetDefaultView(Elements).Refresh();
     }
 
-    private void GenerateUI_Click(object sender, RoutedEventArgs e)
+    private async void GenerateUI_Click(object sender, RoutedEventArgs e)
     {
+        var btn = sender as Button ?? GenerateButton;
+        string original = btn.Content as string ?? "✨ Generate UI";
 
-        CompileUI();
+        btn.IsEnabled = false;
+        try
+        {
+            bool success = CompileUI();
+            btn.Content = success ? "✓ Generated!" : "✗ Failed";
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Generate UI failed: {ex.Message}");
+            btn.Content = "✗ Error";
+        }
+
+        await Task.Delay(1500);
+        btn.Content = original;
+        btn.IsEnabled = true;
     }
 }

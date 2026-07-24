@@ -26,5 +26,7 @@ public class AppSettings
     public string CustomAngelScriptCompilePath { get; set; } = string.Empty;
     public string UIEditorCompilePath { get; set; } = string.Empty;
     public string UIEditorBackgroundPath { get; set; } = string.Empty;
+    public int UIEditorRefWidth { get; set; } = 1920;
+    public int UIEditorRefHeight { get; set; } = 1080;
     public HotkeySettings Hotkeys { get; } = new();
 }
