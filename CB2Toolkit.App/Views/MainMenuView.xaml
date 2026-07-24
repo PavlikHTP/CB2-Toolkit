@@ -84,7 +84,8 @@
                 <StackPanel Grid.Row="1">
                     <Button Content="AngelScript Editor" Style="{StaticResource HubMenuButtonStyle}" Margin="0,0,0,10" Click="OpenEditor_Click" Cursor="Hand"/>
                     <Button Content="Addon Editor" Style="{StaticResource HubMenuButtonStyle}" Margin="0,0,0,10" Click="OpenAddonEditor_Click" Cursor="Hand"/>
-                    <Button Content="UI Editor [SOON]" Style="{StaticResource HubMenuButtonStyle}" Margin="0,0,0,10" Click="OpenUIEditor_Click" Cursor="Hand"/>
+                    <Button Content="UI Editor" Style="{StaticResource HubMenuButtonStyle}" Margin="0,0,0,10" Click="OpenUIEditor_Click" Cursor="Hand"/>
+                    <Button Content="Shader Editor [NOT SOON]" Style="{StaticResource HubMenuButtonStyle}" Margin="0,0,0,10"/>
                     <Button Content="Settings" Style="{StaticResource HubMenuButtonStyle}" Margin="0,0,0,10" Click="OpenSettings_Click" Cursor="Hand"/>
                 </StackPanel>
             </Grid>

@@ -62,6 +62,12 @@ public class CommandProcessor
 
             return result;
         }
+        catch (OperationCanceledException)
+        {
+            sw.Stop();
+            _output.WriteWarning($"Command '{commandName}' was canceled.");
+            return CommandResult.Fail("Execution canceled by user.");
+        }
         catch (Exception ex)
         {
             sw.Stop();
