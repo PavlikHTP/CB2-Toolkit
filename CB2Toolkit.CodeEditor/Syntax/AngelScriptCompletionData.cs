@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using CB2Toolkit.CodeEditor.Models.Enums;
 using ICSharpCode.AvalonEdit.CodeCompletion;
+using ICSharpCode.AvalonEdit.Document;
 
 namespace CB2Toolkit.CodeEditor.Syntax;
 
@@ -88,9 +89,8 @@ public class AngelScriptCompletionData(string text, CompletionType type = Comple
 
     public ImageSource? Image => null;
 
-    public void Complete(ICSharpCode.AvalonEdit.Editing.TextArea textArea, ICSharpCode.AvalonEdit.Document.ISegment completionSegment, EventArgs insertionEventArgs)
+    public void Complete(ICSharpCode.AvalonEdit.Editing.TextArea textArea, ISegment completionSegment, EventArgs insertionEventArgs)
     {
-        string insertionText = Type == CompletionType.Function ? Text + ";" : Text;
-        textArea.Document.Replace(completionSegment, insertionText);
+        textArea.Document.Replace(completionSegment, Text);
     }
 }

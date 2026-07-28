@@ -365,6 +365,44 @@
 
                 <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,24" />
 
+                <TextBlock Text="PLUGINS" FontSize="12" FontWeight="Bold" Foreground="#4D7CFE"
+                           Margin="0,0,0,16" />
+
+                <TextBlock Text="Third-party plugins can extend the toolkit with new features. Plugins execute arbitrary code - only enable this if you trust your sources." 
+                           Foreground="#9CA3AF" FontSize="12.5" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Enable Plugin System" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center"/>
+                    <Button x:Name="EnablePluginsButton" Grid.Column="1" Click="EnablePlugins_Click"
+                            Padding="18,8" Cursor="Hand" FontSize="13" FontWeight="SemiBold">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="BtnBorder" Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+
+                <TextBlock x:Name="PluginsStatusText" Foreground="#6B7280" FontSize="12" Margin="0,0,0,8"/>
+                
+                <StackPanel x:Name="PluginsListPanel" Margin="0,0,0,16"/>
+
+                <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,24" />
+
                 <TextBlock Text="EDITOR &amp; ENVIRONMENT" FontSize="12" FontWeight="Bold" Foreground="#4D7CFE"
                            Margin="0,0,0,16" />
 
@@ -584,6 +622,30 @@
                             KeyDown="HotkeyButton_KeyDown" PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>
                 
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Format Selection" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="FormatHotkeyButton" Grid.Column="1"
+                            Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl + K" Click="HotkeyButton_Click"
+                            KeyDown="HotkeyButton_KeyDown" PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
+                </Grid>
+
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Go to Definition" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="GoToDefinitionHotkeyButton" Grid.Column="1"
+                            Style="{StaticResource HotkeyButtonStyle}" Content="F12" Click="HotkeyButton_Click"
+                            KeyDown="HotkeyButton_KeyDown" PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
+                </Grid>
+
                 <Grid Margin="0,0,0,24">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />

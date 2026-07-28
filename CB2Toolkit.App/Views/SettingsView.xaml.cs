@@ -9,6 +9,7 @@ using CB2Toolkit.CodeEditor.Views;
 using CB2Toolkit.Core;
 using CB2Toolkit.Core.Models.Enums;
 using CB2Toolkit.Core.Models.Settings;
+using CB2Toolkit.Core.Plugins;
 using CB2Toolkit.Core.Services;
 using Microsoft.Win32;
 
@@ -46,6 +47,7 @@ public partial class SettingsView : UserControl
     {
         InitializeComponent();
         LoadSettingsIntoUi();
+        LoadPluginsUi();
     }
 
     private void LoadSettingsIntoUi()
@@ -60,6 +62,8 @@ public partial class SettingsView : UserControl
         AsCompilerPathTextBox.Text = settings.AngelScriptCompilerPath;
         FontSizeSlider.Value = settings.EditorFontSize;
         PriorityComboBox.SelectedValue = settings.FetchPriority.ToString();
+
+        UpdatePluginsButton();
 
         LoadHotkey(HideSearchPanelHotkeyButton, settings.Hotkeys.HideSearchPanelKey, settings.Hotkeys.HideSearchPanelModifiers);
         LoadHotkey(ToggleCommentHotkeyButton, settings.Hotkeys.ToggleCommentKey, settings.Hotkeys.ToggleCommentModifiers);
@@ -76,6 +80,8 @@ public partial class SettingsView : UserControl
         LoadHotkey(NavigateBackHotkeyButton, settings.Hotkeys.NavigateBackKey, settings.Hotkeys.NavigateBackModifiers);
         LoadHotkey(NavigateForwardHotkeyButton, settings.Hotkeys.NavigateForwardKey, settings.Hotkeys.NavigateForwardModifiers);
         LoadHotkey(SelectAllHotkeyButton, settings.Hotkeys.SelectAllKey, settings.Hotkeys.SelectAllModifiers);
+        LoadHotkey(FormatHotkeyButton, settings.Hotkeys.FormatKey, settings.Hotkeys.FormatModifiers);
+        LoadHotkey(GoToDefinitionHotkeyButton, settings.Hotkeys.GoToDefinitionKey, settings.Hotkeys.GoToDefinitionModifiers);
         LoadHotkey(ConsoleHotkeyButton, settings.Hotkeys.ConsoleKey, settings.Hotkeys.ConsoleModifiers);
     }
 
@@ -109,6 +115,8 @@ public partial class SettingsView : UserControl
         SaveHotkey(NavigateBackHotkeyButton, (k, m) => { settings.Hotkeys.NavigateBackKey = k; settings.Hotkeys.NavigateBackModifiers = m; });
         SaveHotkey(NavigateForwardHotkeyButton, (k, m) => { settings.Hotkeys.NavigateForwardKey = k; settings.Hotkeys.NavigateForwardModifiers = m; });
         SaveHotkey(SelectAllHotkeyButton, (k, m) => { settings.Hotkeys.SelectAllKey = k; settings.Hotkeys.SelectAllModifiers = m; });
+        SaveHotkey(FormatHotkeyButton, (k, m) => { settings.Hotkeys.FormatKey = k; settings.Hotkeys.FormatModifiers = m; });
+        SaveHotkey(GoToDefinitionHotkeyButton, (k, m) => { settings.Hotkeys.GoToDefinitionKey = k; settings.Hotkeys.GoToDefinitionModifiers = m; });
         SaveHotkey(ConsoleHotkeyButton, (k, m) => { settings.Hotkeys.ConsoleKey = k; settings.Hotkeys.ConsoleModifiers = m; });
     }
 
@@ -243,6 +251,80 @@ public partial class SettingsView : UserControl
         if (button.Tag is Tuple<string, string> t)
         {
             setter(t.Item1, t.Item2);
+        }
+    }
+
+    private void UpdatePluginsButton()
+    {
+        var settings = SettingsService.Instance.Current;
+        EnablePluginsButton.Content = settings.PluginsEnabled ? "Disable" : "Enable";
+        EnablePluginsButton.Background = settings.PluginsEnabled 
+            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444")) 
+            : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4D7CFE"));
+        
+        PluginsStatusText.Text = settings.PluginsEnabled 
+            ? "Plugin system is active." 
+            : "Plugin system is disabled.";
+        PluginsStatusText.Foreground = new SolidColorBrush(
+            (Color)ColorConverter.ConvertFromString(settings.PluginsEnabled ? "#10B981" : "#6B7280"));
+    }
+
+    private void LoadPluginsUi()
+    {
+        PluginsListPanel.Children.Clear();
+
+        var discovered = PluginLoader.Instance.DiscoverPlugins();
+
+        if (discovered.Count == 0)
+        {
+            PluginsListPanel.Children.Add(new TextBlock
+            {
+                Text = "No plugins found. Place .dll plugin files in the Plugins folder.",
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6B7280")),
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 0, 8)
+            });
+            return;
+        }
+
+        foreach (var info in discovered)
+        {
+            PluginsListPanel.Children.Add(new TextBlock
+            {
+                Text = $"{info.Name} v{info.Version} - {info.Description} (by {info.Author})",
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9CA3AF")),
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 0, 6)
+            });
+        }
+    }
+
+    private async void EnablePlugins_Click(object sender, RoutedEventArgs e)
+    {
+        var settings = SettingsService.Instance.Current;
+
+        if (settings.PluginsEnabled)
+        {
+            await PluginLoader.Instance.UnloadAllPluginsAsync();
+            settings.PluginsEnabled = false;
+            await SettingsService.Instance.SaveAsync();
+            UpdatePluginsButton();
+            return;
+        }
+
+        var dialog = new PluginWarningDialog
+        {
+            Owner = Window.GetWindow(this)
+        };
+
+        bool? result = dialog.ShowDialog();
+
+        if (result == true && dialog.UserAccepted)
+        {
+            settings.PluginsEnabled = true;
+            await SettingsService.Instance.SaveAsync();
+            UpdatePluginsButton();
+            await PluginLoader.Instance.LoadAllPluginsAsync();
         }
     }
 

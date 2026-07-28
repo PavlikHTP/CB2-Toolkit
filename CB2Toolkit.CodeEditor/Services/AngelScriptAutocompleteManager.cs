@@ -39,6 +39,8 @@ public class AngelScriptAutocompleteManager : IDisposable
     private List<string> _signatureParameters = new();
     private string _signaturePrefix = string.Empty;
 
+    public string? CurrentFilePath { get; set; }
+
     private readonly object _cacheLock = new();
     private List<AngelScriptCompletionData> _cachedLocalSuggestions = new();
     private CancellationTokenSource? _debounceCts;
@@ -220,7 +222,15 @@ public class AngelScriptAutocompleteManager : IDisposable
             return;
         }
 
-        if (isInsideStringOrComment) return;
+        if (isInsideStringOrComment)
+        {
+            if (e.Text is "/" or "\\" && IsOnIncludeLine(offset))
+            {
+                TriggerIncludeAutocomplete(offset);
+                return;
+            }
+            return;
+        }
 
         if (e.Text == "(")
         {
@@ -323,27 +333,79 @@ public class AngelScriptAutocompleteManager : IDisposable
 
     private void TriggerIncludeAutocomplete(int caretOffset)
     {
-        var paths = new List<string>();
+        string? baseDir = !string.IsNullOrEmpty(CurrentFilePath)
+            ? Path.GetDirectoryName(CurrentFilePath)
+            : ProjectService.Instance.CurrentFolderPath;
+
+        if (string.IsNullOrEmpty(baseDir) || !Directory.Exists(baseDir)) return;
+
+        string typed = ExtractIncludePath(caretOffset);
+        int includeStart = GetIncludeStartOffset(caretOffset);
+
+        string resolvedDir = Path.GetFullPath(Path.Combine(baseDir, typed));
+        if (!Directory.Exists(resolvedDir)) return;
+
         try
         {
-            if (!string.IsNullOrEmpty(ProjectService.Instance.CurrentFolderPath) && Directory.Exists(ProjectService.Instance.CurrentFolderPath))
+            var items = new List<string>();
+
+            if (!string.IsNullOrEmpty(typed) && typed != ".")
             {
-                string[] files = Directory.GetFiles(ProjectService.Instance.CurrentFolderPath, "*.*", SearchOption.AllDirectories);
-                foreach (var file in files)
-                {
-                    paths.Add(Path.GetRelativePath(ProjectService.Instance.CurrentFolderPath, file).Replace('\\', '/'));
-                }
+                items.Add("..");
+            }
+
+            foreach (string dir in Directory.GetDirectories(resolvedDir))
+            {
+                string rel = Path.GetRelativePath(baseDir, dir).Replace('\\', '/') + "/";
+                if (rel.StartsWith(typed.Replace('\\', '/')) || string.IsNullOrEmpty(typed))
+                    items.Add(rel);
+            }
+
+            foreach (string file in Directory.GetFiles(resolvedDir, "*.as"))
+            {
+                string rel = Path.GetRelativePath(baseDir, file).Replace('\\', '/');
+                if (rel.StartsWith(typed.Replace('\\', '/')) || string.IsNullOrEmpty(typed))
+                    items.Add(rel);
+            }
+
+            if (items.Count > 0)
+            {
+                _currentContextMethods = null;
+                OpenCompletionWindow(includeStart, caretOffset, items.Select(p => new AngelScriptCompletionData(p, CompletionType.Field)));
             }
         }
         catch
         {
         }
+    }
 
-        if (paths.Count > 0)
-        {
-            _currentContextMethods = null;
-            OpenCompletionWindow(caretOffset, caretOffset, paths.Select(p => new AngelScriptCompletionData(p, CompletionType.Field)));
-        }
+    private string ExtractIncludePath(int caretOffset)
+    {
+        var line = _editor.Document.GetLineByOffset(caretOffset);
+        string lineText = _editor.Document.GetText(line.Offset, caretOffset - line.Offset);
+
+        int quoteStart = lineText.LastIndexOf('"');
+        if (quoteStart < 0) return string.Empty;
+
+        return lineText.Substring(quoteStart + 1);
+    }
+
+    private int GetIncludeStartOffset(int caretOffset)
+    {
+        var line = _editor.Document.GetLineByOffset(caretOffset);
+        string lineText = _editor.Document.GetText(line.Offset, caretOffset - line.Offset);
+
+        int quoteStart = lineText.LastIndexOf('"');
+        if (quoteStart < 0) return caretOffset;
+
+        return line.Offset + quoteStart + 1;
+    }
+
+    private bool IsOnIncludeLine(int offset)
+    {
+        var line = _editor.Document.GetLineByOffset(offset);
+        string lineText = _editor.Document.GetText(line.Offset, offset - line.Offset);
+        return RegexPatterns.IncludeLine.IsMatch(lineText);
     }
 
     private void CodeEditor_TextChanged_ForCompletion(object? sender, EventArgs e)
@@ -389,6 +451,12 @@ public class AngelScriptAutocompleteManager : IDisposable
         _completionWindow.CompletionList.SelectItem(currentWord);
     }
 
+    private static string ExtractFunctionName(string key)
+    {
+        int parenIdx = key.IndexOf('(');
+        return parenIdx > 0 ? key.Substring(0, parenIdx).Trim() : key.Trim();
+    }
+
     private List<AngelScriptCompletionData> GetContextualSuggestions(string currentWord, int wordStartOffset)
     {
         var suggestions = new List<AngelScriptCompletionData>(_baseKeywords);
@@ -409,10 +477,11 @@ public class AngelScriptAutocompleteManager : IDisposable
             {
                 foreach (var kvp in globals)
                 {
-                    if (!addedTexts.Contains(kvp.Key))
+                    string funcName = ExtractFunctionName(kvp.Key);
+                    if (!addedTexts.Contains(funcName))
                     {
-                        suggestions.Add(new AngelScriptCompletionData(kvp.Key, CompletionType.Function) { Description = kvp.Value });
-                        addedTexts.Add(kvp.Key);
+                        suggestions.Add(new AngelScriptCompletionData(funcName, CompletionType.Function) { Description = kvp.Value });
+                        addedTexts.Add(funcName);
                     }
                 }
             }
@@ -475,9 +544,10 @@ public class AngelScriptAutocompleteManager : IDisposable
         {
             foreach (var kvp in remoteMethods)
             {
-                if (!members.Any(m => m.Text == kvp.Key))
+                string funcName = ExtractFunctionName(kvp.Key);
+                if (!members.Any(m => m.Text == funcName))
                 {
-                    members.Add(new AngelScriptCompletionData(kvp.Key, CompletionType.Function) { Description = kvp.Value });
+                    members.Add(new AngelScriptCompletionData(funcName, CompletionType.Function) { Description = kvp.Value });
                 }
             }
         }
@@ -757,19 +827,32 @@ public class AngelScriptAutocompleteManager : IDisposable
         string funcName = _editor.Document.GetText(start, end - start).Trim();
         string? matchSignature = null;
 
-        if (_remoteCompletions.TryGetValue("Global", out var globals) && globals.TryGetValue(funcName, out var globalSig))
+        if (_remoteCompletions.TryGetValue("Global", out var globals))
         {
-            matchSignature = globalSig;
-        }
-        else
-        {
-            foreach (var kvp in _remoteCompletions)
+            foreach (var kvp in globals)
             {
-                if (kvp.Value.TryGetValue(funcName, out var classSig))
+                if (ExtractFunctionName(kvp.Key) == funcName)
                 {
-                    matchSignature = classSig;
+                    matchSignature = kvp.Value;
                     break;
                 }
+            }
+        }
+
+        if (matchSignature == null)
+        {
+            foreach (var classKvp in _remoteCompletions)
+            {
+                if (classKvp.Key == "Global") continue;
+                foreach (var kvp in classKvp.Value)
+                {
+                    if (ExtractFunctionName(kvp.Key) == funcName)
+                    {
+                        matchSignature = kvp.Value;
+                        break;
+                    }
+                }
+                if (matchSignature != null) break;
             }
         }
 

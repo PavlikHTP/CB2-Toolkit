@@ -13,6 +13,7 @@ using CB2Toolkit.Core.Console.Commands;
 using CB2Toolkit.Core.Models;
 using CB2Toolkit.Core.Models.Enums;
 using CB2Toolkit.Core.Models.Settings;
+using CB2Toolkit.Core.Plugins;
 using CB2Toolkit.Core.Services;
 using CB2Toolkit.UIEditor.Views;
 
@@ -59,6 +60,49 @@ public partial class MainWindow : Window
         UpdateService.Instance.OnUpdateAvailable += ShowUpdateBanner;
         LoggerService.Instance.OnLogAdded += AddLogEntry;
         LoggerService.Instance.OnLogCleared += ClearLogEntries;
+
+        Loaded += MainWindow_Loaded;
+    }
+
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        var settings = SettingsService.Instance.Current;
+        if (settings.PluginsEnabled)
+        {
+            await LoadPluginsAsync();
+        }
+    }
+
+    private async Task LoadPluginsAsync()
+    {
+        try
+        {
+            var loader = PluginLoader.Instance;
+            loader.EnsurePluginsFolder();
+
+            var discovered = loader.DiscoverPlugins();
+
+            foreach (var plugin in discovered)
+            {
+                try
+                {
+                    await loader.LoadPluginAsync(plugin);
+
+                    if (plugin.Instance != null)
+                    {
+                        RegisterPluginAssembly(plugin.Instance.GetType().Assembly);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LoggerService.Instance.LogError($"Failed to load plugin '{plugin.Name}': {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Plugin loading failed: {ex.Message}");
+        }
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)

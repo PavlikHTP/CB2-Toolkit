@@ -1,4 +1,7 @@
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Security.Principal;
+using System.Text;
 
 namespace CB2Toolkit.Core;
 
@@ -12,6 +15,18 @@ public static class AppMetadata
             .InformationalVersion ?? "1.0.0";
     
     public static Version CurrentVersion  => GetSafeVersion();
+    
+    public static bool IsLocalPrerelease => VersionString.Contains('-');
+
+    public static string MachineId
+    {
+        get
+        {
+            byte[] input = Encoding.UTF8.GetBytes(Environment.MachineName + WindowsIdentity.GetCurrent().User!.Value);
+            byte[] hash = SHA256.HashData(input);
+            return Convert.ToHexString(hash, 0, 8);
+        }
+    }
 
     public static string AppDataFolder => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), 

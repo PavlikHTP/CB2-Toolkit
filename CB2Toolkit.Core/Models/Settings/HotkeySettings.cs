@@ -47,6 +47,12 @@ public class HotkeySettings
     public string SelectAllKey { get; set; } = "A";
     public string SelectAllModifiers { get; set; } = "Control";
     
+    public string FormatKey { get; set; } = "K";
+    public string FormatModifiers { get; set; } = "Control";
+
     public string ConsoleKey { get; set; } = "OemTilde";
-    public string ConsoleModifiers { get; set; } = "None";
+    public string ConsoleModifiers { get; set; } = "Control";
+
+    public string GoToDefinitionKey { get; set; } = "F12";
+    public string GoToDefinitionModifiers { get; set; } = "None";
 }

@@ -28,5 +28,6 @@ public class AppSettings
     public string UIEditorBackgroundPath { get; set; } = string.Empty;
     public int UIEditorRefWidth { get; set; } = 1920;
     public int UIEditorRefHeight { get; set; } = 1080;
+    public bool PluginsEnabled { get; set; }
     public HotkeySettings Hotkeys { get; } = new();
 }

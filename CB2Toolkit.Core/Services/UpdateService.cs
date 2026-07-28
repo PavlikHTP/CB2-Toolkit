@@ -51,15 +51,19 @@ public class UpdateService
                     {
                         Version currentVersion = AppMetadata.CurrentVersion;
 
-                        bool hasUpdate = false;
+                        bool hasUpdate;
                         
                         if (latestVersion > currentVersion)
                         {
                             hasUpdate = true;
                         }
-                        else if (latestVersion == currentVersion && !isRemotePrerelease)
+                        else if (latestVersion == currentVersion && AppMetadata.IsLocalPrerelease && !isRemotePrerelease)
                         {
-                            hasUpdate = true; 
+                            hasUpdate = true;
+                        }
+                        else
+                        {
+                            hasUpdate = false;
                         }
 
                         if (hasUpdate)

@@ -266,6 +266,32 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         _isNavigatingHistory = false;
     }
 
+    private void GoToDefinition()
+    {
+        if (string.IsNullOrEmpty(_currentFilePath)) return;
+
+        int offset = CodeEditor.CaretOffset;
+        var line = CodeEditor.Document.GetLineByOffset(offset);
+        string lineText = CodeEditor.Document.GetText(line.Offset, line.Length);
+
+        if (!RegexPatterns.IncludeLine.IsMatch(lineText)) return;
+
+        char openDelim = lineText[lineText.IndexOfAny(['"', '<'])];
+        char closeDelim = openDelim == '"' ? '"' : '>';
+        int start = lineText.IndexOf(openDelim);
+        int end = lineText.LastIndexOf(closeDelim);
+        if (start < 0 || end <= start) return;
+
+        string includePath = lineText.Substring(start + 1, end - start - 1);
+        string baseDir = Path.GetDirectoryName(_currentFilePath)!;
+        string fullPath = Path.GetFullPath(Path.Combine(baseDir, includePath));
+
+        if (File.Exists(fullPath))
+        {
+            OpenFile(fullPath);
+        }
+    }
+
     private void View_PreviewKeyDown(object sender, KeyEventArgs e) => HandleInputEvent(e);
     private void View_PreviewMouseDown(object sender, MouseButtonEventArgs e) => HandleInputEvent(e);
 
@@ -287,6 +313,8 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         if (TryTrigger(e, hotkeys.UndoKey, hotkeys.UndoModifiers, () => _historyManager.Undo())) return;
         if (TryTrigger(e, hotkeys.NavigateBackKey, hotkeys.NavigateBackModifiers, NavigateBack)) return;
         if (TryTrigger(e, hotkeys.NavigateForwardKey, hotkeys.NavigateForwardModifiers, NavigateForward)) return;
+        if (TryTrigger(e, hotkeys.FormatKey, hotkeys.FormatModifiers, () => CodeEditor.FormatSelection())) return;
+        if (TryTrigger(e, hotkeys.GoToDefinitionKey, hotkeys.GoToDefinitionModifiers, GoToDefinition)) return;
 
         if (TryTrigger(e, hotkeys.RedoKey, hotkeys.RedoModifiers, () =>
             {
@@ -539,12 +567,16 @@ public partial class AngelScriptEditorView : LifecycleUserControl
 
     private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
+        if (_isGlobalMode) return;
         UpdateSearchMarkers(SearchTextBox.Text);
+        FindMatch(false);
     }
 
     private void SearchOption_Changed(object sender, RoutedEventArgs e)
     {
+        if (_isGlobalMode) return;
         UpdateSearchMarkers(SearchTextBox.Text);
+        FindMatch(false);
     }
     private void UpdateSearchMarkers(string textToFind)
 {
@@ -1050,6 +1082,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
             _autocompleteManager?.ClearWindow();
 
             TempFileService.Instance.ClearTemp(_currentFilePath);
+            if (_autocompleteManager != null) _autocompleteManager.CurrentFilePath = null;
             _currentFilePath = null;
             _isUnsaved = false;
 
@@ -1242,6 +1275,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
 
         IsSuppressingTextEvents = true;
         _currentFilePath = filePath;
+        _autocompleteManager.CurrentFilePath = _currentFilePath;
         _foldingManager?.Clear();
 
         string tempText = TempFileService.Instance.GetTemp(_currentFilePath);

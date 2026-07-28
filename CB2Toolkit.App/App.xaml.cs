@@ -60,6 +60,7 @@ public partial class App : Application
 
             DiscordRpcService.Initialize();
             _ = UpdateService.Instance.CheckForUpdatesAsync();
+            _ = StatsService.Instance.PingAsync();
         }
         catch (Exception ex)
         {

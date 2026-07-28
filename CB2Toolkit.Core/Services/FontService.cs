@@ -1,10 +1,8 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Resources;
 using System.Windows.Media;
 using CB2Toolkit.Core.Models;
 using FontEnum = CB2Toolkit.Core.Models.Enums.Fonts;
@@ -59,56 +57,81 @@ public class FontService
 
     private void TryLoadFontsFromResources()
     {
-        var assemblies = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location));
+        string[] asmNames = { "CB2Toolkit.UIEditor" };
 
-        foreach (var assembly in assemblies)
+        foreach (string asmName in asmNames)
         {
-            string asmName = assembly.GetName().Name;
-            string resName = asmName + ".g.resources";
-
-            using var stream = assembly.GetManifestResourceStream(resName);
-            if (stream == null) continue;
-
-            using var reader = new ResourceReader(stream);
-
-            foreach (DictionaryEntry entry in reader)
+            Assembly assembly;
+            try
             {
-                string resourcePath = entry.Key?.ToString();
-                if (string.IsNullOrEmpty(resourcePath) || !resourcePath.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase))
-                    continue;
+                assembly = AppDomain.CurrentDomain.GetAssemblies()
+                    .FirstOrDefault(a => a.GetName().Name == asmName);
+            }
+            catch
+            {
+                continue;
+            }
 
-                string fileName = Path.GetFileName(resourcePath);
-                var packUri = new Uri($"pack://application:,,,/{asmName};component/{resourcePath}");
+            if (assembly == null) continue;
 
-                string familyName = null;
+            var fontResources = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+            string prefix = asmName + ".Fonts.";
+
+            foreach (string resName in assembly.GetManifestResourceNames())
+            {
+                if (!resName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+                string fileName = resName.Substring(prefix.Length);
 
                 try
                 {
-                    var glyph = new GlyphTypeface(packUri);
-                    familyName = glyph.Win32FamilyNames.Values.FirstOrDefault(v => !string.IsNullOrEmpty(v))
-                              ?? glyph.FamilyNames.Values.FirstOrDefault(v => !string.IsNullOrEmpty(v));
+                    using var stream = assembly.GetManifestResourceStream(resName);
+                    if (stream == null) continue;
+                    using var ms = new MemoryStream();
+                    stream.CopyTo(ms);
+                    fontResources[fileName] = ms.ToArray();
                 }
-                catch
+                catch { }
+            }
+
+            if (fontResources.Count == 0) continue;
+
+            string tempDir = Path.Combine(Path.GetTempPath(), "CB2Toolkit-Fonts");
+            Directory.CreateDirectory(tempDir);
+            var dirUri = new Uri(tempDir + "\\", UriKind.Absolute);
+
+            var uniqueFonts = _fontMappings.Values
+                .Select(m => m.file)
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+
+            foreach (string fileName in uniqueFonts)
+            {
+                if (!fontResources.TryGetValue(fileName, out var fontData)) continue;
+
+                try
                 {
+                    string tempFile = Path.Combine(tempDir, fileName);
+
+                    if (!File.Exists(tempFile))
+                        File.WriteAllBytes(tempFile, fontData);
+
+                    var glyph = new GlyphTypeface(new Uri(tempFile, UriKind.Absolute));
+                    string familyName = glyph.Win32FamilyNames.Values
+                        .FirstOrDefault(v => !string.IsNullOrEmpty(v))
+                        ?? glyph.FamilyNames.Values.FirstOrDefault(v => !string.IsNullOrEmpty(v));
+
+                    if (string.IsNullOrEmpty(familyName)) continue;
+
+                    var family = new FontFamily(dirUri, "./#" + familyName);
+
+                    string realKey = familyName.ToLowerInvariant();
+                    if (!_loaded.ContainsKey(realKey))
+                        _loaded[realKey] = family;
+
+                    string fileNameKey = Path.GetFileNameWithoutExtension(fileName).ToLowerInvariant();
+                    if (!_loaded.ContainsKey(fileNameKey))
+                        _loaded[fileNameKey] = family;
                 }
-
-                if (string.IsNullOrEmpty(familyName))
-                    continue;
-                
-                int lastSlash = resourcePath.LastIndexOf('/');
-                string folderPath = lastSlash >= 0 ? resourcePath.Substring(0, lastSlash + 1) : "";
-                var baseUri = new Uri($"pack://application:,,,/{asmName};component/{folderPath}");
-
-                var family = new FontFamily(baseUri, "./#" + familyName);
-
-                string realKey = familyName.ToLowerInvariant();
-                if (!_loaded.ContainsKey(realKey))
-                    _loaded[realKey] = family;
-
-                string fileNameKey = Path.GetFileNameWithoutExtension(fileName).ToLowerInvariant();
-                if (!_loaded.ContainsKey(fileNameKey))
-                    _loaded[fileNameKey] = family;
+                catch { }
             }
         }
     }

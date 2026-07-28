@@ -24,6 +24,7 @@ namespace CB2Toolkit.UIEditor.Views;
 public partial class UIEditorView : LifecycleUserControl
 {
     private bool _isDragging;
+    private bool _dragThresholdExceeded;
     private Point _dragStartPoint;
     private UIElementModel _draggedElement;
 
@@ -50,6 +51,8 @@ public partial class UIEditorView : LifecycleUserControl
     private bool _isUpdatingScrollbar;
     private bool _squareAspectLock;
 
+    private bool _isMarqueeSelecting;
+    private Point _marqueeStartPoint;
     public ObservableCollection<UIElementModel> Elements { get; set; } = new();
 
     public Array FontsList => Enum.GetValues(typeof(Fonts));
@@ -124,6 +127,18 @@ public partial class UIEditorView : LifecycleUserControl
 
     private void BackToMenu_Click(object sender, RoutedEventArgs e)
     {
+        if (_historyManager.HasUnsavedChanges)
+        {
+            var result = ModernMessageBox.Show(
+                Window.GetWindow(this),
+                "You have unsaved changes. Are you sure you want to go back?",
+                "Unsaved Changes",
+                ModernBoxType.Question);
+
+            if (result.Result != ModernBoxResultType.Yes)
+                return;
+        }
+
         Window currentWindow = Window.GetWindow(this);
         if (currentWindow != null)
         {
@@ -226,26 +241,6 @@ public partial class UIEditorView : LifecycleUserControl
                 !string.IsNullOrEmpty(selected.GroupId) ? Visibility.Visible : Visibility.Collapsed;
             GroupNameTextBox.Text = selected.GroupId ?? "";
             UpdateHexTextBox(selected);
-
-            if (!string.IsNullOrEmpty(selected.GroupId) && !Keyboard.Modifiers.HasFlag(ModifierKeys.Alt))
-            {
-                _isUpdatingSelection = true;
-                try
-                {
-                    var groupItems = Elements.Where(el => el.GroupId == selected.GroupId).ToList();
-                    foreach (var item in groupItems)
-                    {
-                        if (!ElementsList.SelectedItems.Contains(item))
-                        {
-                            ElementsList.SelectedItems.Add(item);
-                        }
-                    }
-                }
-                finally
-                {
-                    _isUpdatingSelection = false;
-                }
-            }
         }
 
         Dispatcher.InvokeAsync(UpdateSelectionBox);
@@ -275,28 +270,35 @@ public partial class UIEditorView : LifecycleUserControl
 
     private void GroupHeaderGrid_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ClickCount == 2)
+        if (sender is FrameworkElement fe && fe.DataContext is CollectionViewGroup group)
         {
-            e.Handled = true;
+            string groupId = group.Name?.ToString();
+            if (string.IsNullOrEmpty(groupId)) return;
 
-            if (sender is FrameworkElement fe && fe.DataContext is CollectionViewGroup group)
+            if (e.ClickCount >= 2)
             {
-                string oldGroupId = group.Name?.ToString();
-                if (string.IsNullOrEmpty(oldGroupId)) return;
+                e.Handled = true;
 
                 var result = ModernMessageBox.Show(
                     Window.GetWindow(this),
                     "Enter new group name:",
                     "Rename Group",
                     ModernBoxType.Input,
-                    oldGroupId
+                    groupId
                 );
 
                 if (result != null && result.Result == ModernBoxResultType.OK &&
                     !string.IsNullOrWhiteSpace(result.InputText))
                 {
-                    RenameGroupById(oldGroupId, result.InputText.Trim());
+                    RenameGroupById(groupId, result.InputText.Trim());
                 }
+            }
+            else
+            {
+                e.Handled = true;
+                ElementsList.UnselectAll();
+                foreach (var el in Elements.Where(x => x.GroupId == groupId))
+                    ElementsList.SelectedItems.Add(el);
             }
         }
     }
@@ -330,8 +332,30 @@ public partial class UIEditorView : LifecycleUserControl
 
         if (e.ChangedButton != MouseButton.Left) return;
 
+        // Detect clicks on SelectionBox Thumbs — Thumb handles MouseLeftButtonDown
+        // which prevents PreviewWorkspace_MouseLeftButtonDown from firing.
+        // Here we pre-select the element under the cursor before the Thumb drag starts.
+        Point thumbPos = e.GetPosition(PreviewContentRoot);
+        DependencyObject src = e.OriginalSource as DependencyObject;
+        if (src != null)
+        {
+            DependencyObject walk = src;
+            while (walk != null && walk != PreviewContentRoot)
+            {
+                if (walk is Thumb)
+                {
+                    UIElementModel model = PickElement(thumbPos);
+                    if (model != null && !ElementsList.SelectedItems.Contains(model))
+                    {
+                        SelectElement(model, e);
+                    }
+                    return;
+                }
+                walk = VisualTreeHelper.GetParent(walk);
+            }
+        }
+
         if (e.OriginalSource == ElementsList ||
-            e.OriginalSource is Border ||
             e.OriginalSource is ScrollViewer)
         {
             ElementsList.UnselectAll();
@@ -389,44 +413,6 @@ public partial class UIEditorView : LifecycleUserControl
     private void PreviewWorkspace_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         _contextMenuSpawnPoint = e.GetPosition(PreviewContentRoot);
-
-        var hitResult = VisualTreeHelper.HitTest(PreviewContentRoot, e.GetPosition(PreviewContentRoot));
-        if (hitResult != null)
-        {
-            DependencyObject depObj = hitResult.VisualHit;
-            while (depObj != null && depObj != PreviewContentRoot)
-            {
-                if (depObj is FrameworkElement fe && fe.DataContext is UIElementModel model)
-                {
-                    if (!ElementsList.SelectedItems.Contains(model))
-                    {
-                        bool isModifierPressed = Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ||
-                                                 Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
-                        if (!isModifierPressed)
-                        {
-                            ElementsList.UnselectAll();
-                        }
-
-                        ElementsList.SelectedItems.Add(model);
-
-                        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Alt) && !string.IsNullOrEmpty(model.GroupId))
-                        {
-                            foreach (var el in Elements.Where(x => x.GroupId == model.GroupId))
-                            {
-                                if (!ElementsList.SelectedItems.Contains(el))
-                                {
-                                    ElementsList.SelectedItems.Add(el);
-                                }
-                            }
-                        }
-                    }
-
-                    break;
-                }
-
-                depObj = VisualTreeHelper.GetParent(depObj);
-            }
-        }
 
         if (PreviewBorder.ContextMenu != null)
         {
@@ -547,121 +533,156 @@ public partial class UIEditorView : LifecycleUserControl
             return;
         }
 
-        var hitResult = VisualTreeHelper.HitTest(PreviewContentRoot, e.GetPosition(PreviewContentRoot));
-        if (hitResult == null)
+        Point clickPos = e.GetPosition(PreviewContentRoot);
+        UIElementModel hitModel = PickElement(clickPos);
+
+        if (hitModel != null)
         {
-            ElementsList.UnselectAll();
+            SelectElement(hitModel, e);
+            if (e.ClickCount < 2 && !Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+                StartElementDrag(hitModel, clickPos);
             return;
         }
 
-        DependencyObject depObj = hitResult.VisualHit;
-        bool elementHit = false;
+        Point screenPos = ContentToScreen(clickPos.X, clickPos.Y);
+        StartMarqueeSelection(screenPos);
+    }
 
-        while (depObj != null && depObj != PreviewContentRoot)
+    private UIElementModel PickElement(Point clickPos)
+    {
+        // Use InputHitTest with the same coordinate system as mouse events.
+        // Convert clickPos from PreviewContentRoot coords to VisualPreviewContainer coords.
+        Point localPos = PreviewContentRoot.TranslatePoint(clickPos, VisualPreviewContainer);
+
+        // InputHitTest uses WPF's input hit testing — same as what determines e.OriginalSource.
+        IInputElement inputHit = VisualPreviewContainer.InputHitTest(localPos);
+        if (inputHit is DependencyObject dObj)
         {
-            if (depObj is Thumb)
+            DependencyObject walk = dObj;
+            while (walk != null && walk != VisualPreviewContainer)
             {
-                return;
+                if (walk is FrameworkElement fe && fe.DataContext is UIElementModel model && Elements.Contains(model))
+                    return model;
+                walk = VisualTreeHelper.GetParent(walk);
             }
+        }
 
-            if (depObj is FrameworkElement fe && fe.DataContext is UIElementModel model)
-            {
-                elementHit = true;
-                _historyManager.SaveState();
+        // Fallback: enumerate elements in reverse (topmost first) and check model bounds.
+        // This catches elements whose container layout isn't ready (Canvas.GetLeft = NaN).
+        double cw = ContainerWidth;
+        if (cw <= 0) cw = PreviewContentRoot.Width;
+        if (cw <= 0) return null;
+        double ch = ContainerHeight;
+        if (ch <= 0) ch = PreviewContentRoot.Height;
+        if (ch <= 0) return null;
 
-                bool isAltPressed = Keyboard.Modifiers.HasFlag(ModifierKeys.Alt);
-                bool isModifierPressed = Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ||
-                                         Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+        double nx = clickPos.X / cw;
+        double ny = clickPos.Y / ch;
 
-                if (!isModifierPressed)
-                {
-                    if (isAltPressed)
-                    {
-                        ElementsList.UnselectAll();
-                        ElementsList.SelectedItems.Add(model);
-                    }
-                    else if (!ElementsList.SelectedItems.Contains(model))
-                    {
-                        ElementsList.UnselectAll();
-                        if (!string.IsNullOrEmpty(model.GroupId))
-                        {
-                            foreach (var el in Elements.Where(x => x.GroupId == model.GroupId))
-                            {
-                                ElementsList.SelectedItems.Add(el);
-                            }
-                        }
-                        else
-                        {
-                            ElementsList.SelectedItems.Add(model);
-                        }
-                    }
-                }
-                else
-                {
-                    if (!isAltPressed && !string.IsNullOrEmpty(model.GroupId))
-                    {
-                        foreach (var el in Elements.Where(x => x.GroupId == model.GroupId))
-                        {
-                            if (!ElementsList.SelectedItems.Contains(el))
-                            {
-                                ElementsList.SelectedItems.Add(el);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (!ElementsList.SelectedItems.Contains(model))
-                        {
-                            ElementsList.SelectedItems.Add(model);
-                        }
-                    }
-                }
+        for (int i = Elements.Count - 1; i >= 0; i--)
+        {
+            var el = Elements[i];
+            if (nx >= el.X && nx <= el.X + el.Width && ny >= el.Y && ny <= el.Y + el.Height)
+                return el;
+        }
 
-                _draggedElement = model;
-                _isDragging = true;
-                _dragStartPoint = e.GetPosition(PreviewContentRoot);
+        return null;
+    }
 
-                _draggedElementsData.Clear();
-        double containerWidth = ContainerWidth;
-        double containerHeight = ContainerHeight;
+    private void SelectElement(UIElementModel model, MouseButtonEventArgs e)
+    {
+        _historyManager.SaveState();
+
+        bool ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+        bool shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+
+        if (ctrl || shift)
+        {
+            if (ElementsList.SelectedItems.Contains(model))
+                ElementsList.SelectedItems.Remove(model);
+            else
+                ElementsList.SelectedItems.Add(model);
+            UpdateSelectionBox();
+            return;
+        }
+
+        if (ElementsList.SelectedItems.Contains(model) && ElementsList.SelectedItems.Count > 1)
+        {
+            UpdateSelectionBox();
+            return;
+        }
+
+        ElementsList.UnselectAll();
+
+        if (e.ClickCount >= 2 && !string.IsNullOrEmpty(model.GroupId))
+        {
+            foreach (var el in Elements.Where(x => x.GroupId == model.GroupId))
+                ElementsList.SelectedItems.Add(el);
+        }
+        else
+        {
+            ElementsList.SelectedItems.Add(model);
+        }
+
+        UpdateSelectionBox();
+    }
+
+    private void StartElementDrag(UIElementModel model, Point clickPos)
+    {
+        if (_isMarqueeSelecting) return;
+
+        _draggedElement = model;
+        _isDragging = true;
+        _dragThresholdExceeded = false;
+        _dragStartPoint = clickPos;
+        _draggedElementsData.Clear();
+
+        double cw = ContainerWidth;
+        double ch = ContainerHeight;
 
         foreach (var item in ElementsList.SelectedItems)
         {
             if (item is UIElementModel el)
             {
-                double normElementWidth = el.Width;
-                double normElementHeight = el.Height;
+                double normW = el.Width;
+                double normH = el.Height;
 
-                if (el.Type == ElementType.Text && containerWidth > 0 && containerHeight > 0)
+                if (el.Type == ElementType.Text && cw > 0 && ch > 0)
+                {
+                    if (VisualPreviewContainer.ItemContainerGenerator.ContainerFromItem(el) is FrameworkElement container)
+                    {
+                        var grid = VisualTreeHelper.GetChild(container, 0) as FrameworkElement;
+                        if (grid != null && grid.ActualWidth > 0)
                         {
-                            if (VisualPreviewContainer.ItemContainerGenerator.ContainerFromItem(el) is FrameworkElement
-                                container)
-                            {
-                                var grid = VisualTreeHelper.GetChild(container, 0) as FrameworkElement;
-                                if (grid != null && grid.ActualWidth > 0)
-                                {
-                                    normElementWidth = grid.ActualWidth / containerWidth;
-                                    normElementHeight = grid.ActualHeight / containerHeight;
-                                }
-                            }
+                            normW = grid.ActualWidth / cw;
+                            normH = grid.ActualHeight / ch;
                         }
-
-                        _draggedElementsData[el] = (el.X, el.Y, normElementWidth, normElementHeight);
                     }
                 }
 
-                PreviewBorder.CaptureMouse();
-                e.Handled = true;
-                return;
+                _draggedElementsData[el] = (el.X, el.Y, normW, normH);
             }
-
-            depObj = VisualTreeHelper.GetParent(depObj);
         }
 
-        if (!elementHit)
-        {
+        PreviewBorder.CaptureMouse();
+    }
+
+    private void StartMarqueeSelection(Point clickPos)
+    {
+        bool isModifierPressed = Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ||
+                                  Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+
+        if (!isModifierPressed)
             ElementsList.UnselectAll();
-        }
+
+        _isMarqueeSelecting = true;
+        _marqueeStartPoint = clickPos;
+        MarqueeRect.Visibility = Visibility.Visible;
+        Canvas.SetLeft(MarqueeRect, clickPos.X);
+        Canvas.SetTop(MarqueeRect, clickPos.Y);
+        MarqueeRect.Width = 0;
+        MarqueeRect.Height = 0;
+        PreviewBorder.CaptureMouse();
     }
 
     private void PreviewBorder_MouseUp(object sender, MouseButtonEventArgs e)
@@ -676,6 +697,15 @@ public partial class UIEditorView : LifecycleUserControl
 
     private void PreviewWorkspace_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        if (_isMarqueeSelecting)
+        {
+            CompleteMarqueeSelection();
+            PreviewBorder.ReleaseMouseCapture();
+            _isMarqueeSelecting = false;
+            MarqueeRect.Visibility = Visibility.Collapsed;
+            return;
+        }
+
         if (_isDragging)
         {
             PreviewBorder.ReleaseMouseCapture();
@@ -688,6 +718,50 @@ public partial class UIEditorView : LifecycleUserControl
             PreviewBorder.ReleaseMouseCapture();
             _isPanning = false;
         }
+    }
+
+    private void CompleteMarqueeSelection()
+    {
+        double cw = ContainerWidth;
+        double ch = ContainerHeight;
+        if (cw <= 0 || ch <= 0) return;
+
+        double x = Canvas.GetLeft(MarqueeRect);
+        double y = Canvas.GetTop(MarqueeRect);
+        double w = MarqueeRect.Width;
+        double h = MarqueeRect.Height;
+
+        if (w < 3 && h < 3) return;
+
+        double scale = PreviewScaleTransform.ScaleX;
+        double bw = PreviewBorder.ActualWidth;
+        double bh = PreviewBorder.ActualHeight;
+        double halfCw = PreviewContentRoot.Width / 2.0;
+        double halfCh = PreviewContentRoot.Height / 2.0;
+
+        double normLeft = ((x - bw / 2.0 - _panX) / scale + halfCw) / cw;
+        double normTop = ((y - bh / 2.0 - _panY) / scale + halfCh) / ch;
+        double normRight = ((x + w - bw / 2.0 - _panX) / scale + halfCw) / cw;
+        double normBottom = ((y + h - bh / 2.0 - _panY) / scale + halfCh) / ch;
+
+        bool isModifierPressed = Keyboard.Modifiers.HasFlag(ModifierKeys.Control) ||
+                                  Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+        if (!isModifierPressed)
+            ElementsList.UnselectAll();
+
+        foreach (var el in Elements)
+        {
+            double elRight = el.X + el.Width;
+            double elBottom = el.Y + el.Height;
+            bool intersects = el.X < normRight && elRight > normLeft && el.Y < normBottom && elBottom > normTop;
+            if (intersects)
+            {
+                if (!ElementsList.SelectedItems.Contains(el))
+                    ElementsList.SelectedItems.Add(el);
+            }
+        }
+
+        Dispatcher.InvokeAsync(UpdateSelectionBox);
     }
 
     private void PreviewWorkspace_MouseMove(object sender, MouseEventArgs e)
@@ -703,6 +777,21 @@ public partial class UIEditorView : LifecycleUserControl
             PreviewTranslateTransform.X = _panX;
             PreviewTranslateTransform.Y = _panY;
             UpdateScrollbars();
+            Dispatcher.InvokeAsync(UpdateSelectionBox);
+            return;
+        }
+
+        if (_isMarqueeSelecting)
+        {
+            Point cur = e.GetPosition(PreviewBorder);
+            double x = Math.Min(_marqueeStartPoint.X, cur.X);
+            double y = Math.Min(_marqueeStartPoint.Y, cur.Y);
+            double w = Math.Abs(cur.X - _marqueeStartPoint.X);
+            double h = Math.Abs(cur.Y - _marqueeStartPoint.Y);
+            Canvas.SetLeft(MarqueeRect, x);
+            Canvas.SetTop(MarqueeRect, y);
+            MarqueeRect.Width = w;
+            MarqueeRect.Height = h;
             return;
         }
 
@@ -716,6 +805,13 @@ public partial class UIEditorView : LifecycleUserControl
             Point currentPoint = e.GetPosition(PreviewContentRoot);
             double deltaX = currentPoint.X - _dragStartPoint.X;
             double deltaY = currentPoint.Y - _dragStartPoint.Y;
+
+            // Drag threshold — don't budge elements on micro-movements
+            if (!_dragThresholdExceeded)
+            {
+                _dragThresholdExceeded = Math.Abs(deltaX) > 4.0 || Math.Abs(deltaY) > 4.0;
+                if (!_dragThresholdExceeded) return;
+            }
 
             double normDeltaX = deltaX / cw;
             double normDeltaY = deltaY / ch;
@@ -752,8 +848,8 @@ public partial class UIEditorView : LifecycleUserControl
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) &&
                 _draggedElementsData.TryGetValue(_draggedElement, out var primaryOrig))
             {
-                double snappedX = Math.Round((primaryOrig.X + normDeltaX) / 0.01) * 0.01;
-                double snappedY = Math.Round((primaryOrig.Y + normDeltaY) / 0.01) * 0.01;
+                double snappedX = Math.Round((primaryOrig.X + normDeltaX) / 0.001) * 0.001;
+                double snappedY = Math.Round((primaryOrig.Y + normDeltaY) / 0.001) * 0.001;
 
                 normDeltaX = snappedX - primaryOrig.X;
                 normDeltaY = snappedY - primaryOrig.Y;
@@ -875,6 +971,17 @@ public partial class UIEditorView : LifecycleUserControl
         }
     }
 
+    private void ColorSlider_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _historyManager.SaveState();
+    }
+
+    private void ColorSlider_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.Left or Key.Right or Key.Up or Key.Down)
+            _historyManager.SaveState();
+    }
+
     private void ResizeThumb_DragDelta(object sender, DragDeltaEventArgs e)
     {
         if (ElementsList.SelectedItems.Count == 0) return;
@@ -954,27 +1061,27 @@ public partial class UIEditorView : LifecycleUserControl
             if (direction.Contains("W"))
             {
                 double normDeltaX = deltaPx / cw;
-                newGroupX = Math.Clamp(_initialGroupBounds.X + normDeltaX, 0.0, initialRight - 0.01);
-                newGroupWidth = Math.Max(0.01, initialRight - newGroupX);
+                newGroupX = Math.Clamp(_initialGroupBounds.X + normDeltaX, 0.0, initialRight - 0.001);
+                newGroupWidth = Math.Max(0.001, initialRight - newGroupX);
             }
             else if (direction.Contains("E"))
             {
                 double maxW = 1.0 - _initialGroupBounds.X;
                 double normDeltaW = deltaPx / cw;
-                newGroupWidth = Math.Clamp(_initialGroupBounds.Width + normDeltaW, 0.01, maxW);
+                newGroupWidth = Math.Clamp(_initialGroupBounds.Width + normDeltaW, 0.001, maxW);
             }
 
             if (direction.Contains("N"))
             {
                 double normDeltaY = deltaPy / ch;
-                newGroupY = Math.Clamp(_initialGroupBounds.Y + normDeltaY, 0.0, initialBottom - 0.01);
-                newGroupHeight = Math.Max(0.01, initialBottom - newGroupY);
+                newGroupY = Math.Clamp(_initialGroupBounds.Y + normDeltaY, 0.0, initialBottom - 0.001);
+                newGroupHeight = Math.Max(0.001, initialBottom - newGroupY);
             }
             else if (direction.Contains("S"))
             {
                 double maxH = 1.0 - _initialGroupBounds.Y;
                 double normDeltaH = deltaPy / ch;
-                newGroupHeight = Math.Clamp(_initialGroupBounds.Height + normDeltaH, 0.01, maxH);
+                newGroupHeight = Math.Clamp(_initialGroupBounds.Height + normDeltaH, 0.001, maxH);
             }
 
             double scaleX = _initialGroupBounds.Width > 0 ? newGroupWidth / _initialGroupBounds.Width : 1.0;
@@ -989,14 +1096,14 @@ public partial class UIEditorView : LifecycleUserControl
                 {
                     double relX = origX - _initialGroupBounds.X;
                     el.X = Math.Round(newGroupX + relX * scaleX, 4);
-                    el.Width = Math.Round(Math.Max(0.005, origW * scaleX), 4);
+                    el.Width = Math.Round(Math.Max(0.001, origW * scaleX), 4);
                 }
 
                 if (direction.Contains("N") || direction.Contains("S"))
                 {
                     double relY = origY - _initialGroupBounds.Y;
                     el.Y = Math.Round(newGroupY + relY * scaleY, 4);
-                    el.Height = Math.Round(Math.Max(0.005, origH * scaleY), 4);
+                    el.Height = Math.Round(Math.Max(0.001, origH * scaleY), 4);
                 }
             }
 
@@ -1028,9 +1135,53 @@ public partial class UIEditorView : LifecycleUserControl
     {
         if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {
+            double oldScale = PreviewScaleTransform.ScaleX;
+            Point mousePos = e.GetPosition(PreviewBorder);
+            double availW = PreviewBorder.ActualWidth;
+            double availH = PreviewBorder.ActualHeight;
+            double cw = PreviewContentRoot.Width;
+            double ch = PreviewContentRoot.Height;
+
+            double contentX = (mousePos.X - availW / 2.0 - _panX) / oldScale + cw / 2.0;
+            double contentY = (mousePos.Y - availH / 2.0 - _panY) / oldScale + ch / 2.0;
+
             double delta = e.Delta > 0 ? 10 : -10;
             double newValue = Math.Clamp(ZoomSlider.Value + delta, ZoomSlider.Minimum, ZoomSlider.Maximum);
             ZoomSlider.Value = newValue;
+
+            double newScale = PreviewScaleTransform.ScaleX;
+            _panX = mousePos.X - availW / 2.0 - (contentX - cw / 2.0) * newScale;
+            _panY = mousePos.Y - availH / 2.0 - (contentY - ch / 2.0) * newScale;
+            ClampPan();
+            PreviewTranslateTransform.X = _panX;
+            PreviewTranslateTransform.Y = _panY;
+            UpdateScrollbars();
+
+            e.Handled = true;
+            return;
+        }
+
+        Point pos = e.GetPosition(PreviewBorder);
+        double bh = PreviewBorder.ActualHeight;
+
+        if (pos.Y >= bh - PreviewHScrollBar.ActualHeight)
+        {
+            double scroll = e.Delta > 0 ? 30.0 : -30.0;
+            _panX += scroll;
+            ClampPan();
+            PreviewTranslateTransform.X = _panX;
+            UpdateScrollbars();
+            Dispatcher.InvokeAsync(UpdateSelectionBox);
+            e.Handled = true;
+        }
+        else
+        {
+            double scroll = e.Delta > 0 ? 30.0 : -30.0;
+            _panY += scroll;
+            ClampPan();
+            PreviewTranslateTransform.Y = _panY;
+            UpdateScrollbars();
+            Dispatcher.InvokeAsync(UpdateSelectionBox);
             e.Handled = true;
         }
     }
@@ -1083,10 +1234,23 @@ public partial class UIEditorView : LifecycleUserControl
         PreviewTranslateTransform.Y = _panY;
 
         UpdateScrollbars();
+        Dispatcher.InvokeAsync(UpdateSelectionBox);
     }
 
     private double ContainerWidth => PreviewContentRoot.ActualWidth;
     private double ContainerHeight => PreviewContentRoot.ActualHeight;
+
+    private Point ContentToScreen(double contentX, double contentY)
+    {
+        double scale = PreviewScaleTransform.ScaleX;
+        double cw = PreviewContentRoot.Width;
+        double ch = PreviewContentRoot.Height;
+        double bw = PreviewBorder.ActualWidth;
+        double bh = PreviewBorder.ActualHeight;
+        double sx = bw / 2.0 + (contentX - cw / 2.0) * scale + _panX;
+        double sy = bh / 2.0 + (contentY - ch / 2.0) * scale + _panY;
+        return new Point(sx, sy);
+    }
 
     private void ClampPan()
     {
@@ -1096,8 +1260,8 @@ public partial class UIEditorView : LifecycleUserControl
         double contentW = PreviewContentRoot.Width * scale;
         double contentH = PreviewContentRoot.Height * scale;
 
-        double maxPanX = contentW > availableWidth ? (contentW - availableWidth) / 2.0 : 0;
-        double maxPanY = contentH > availableHeight ? (contentH - availableHeight) / 2.0 : 0;
+        double maxPanX = (contentW + availableWidth) / 2.0;
+        double maxPanY = (contentH + availableHeight) / 2.0;
 
         _panX = Math.Clamp(_panX, -maxPanX, maxPanX);
         _panY = Math.Clamp(_panY, -maxPanY, maxPanY);
@@ -1117,32 +1281,38 @@ public partial class UIEditorView : LifecycleUserControl
 
         _isUpdatingScrollbar = true;
 
-        if (contentW > availableWidth && availableWidth > 0)
+        if (availableWidth > 0)
         {
-            double maxPanX = (contentW - availableWidth) / 2.0;
-            PreviewHScrollBar.Visibility = Visibility.Visible;
-            PreviewHScrollBar.Minimum = 0;
-            PreviewHScrollBar.Maximum = scrollRange;
-            PreviewHScrollBar.ViewportSize = scrollRange * (availableWidth / contentW);
-            PreviewHScrollBar.Value = (scrollRange / 2.0) - (_panX / maxPanX) * (scrollRange / 2.0);
-        }
-        else
-        {
-            PreviewHScrollBar.Visibility = Visibility.Collapsed;
+            double maxPanX = (contentW + availableWidth) / 2.0;
+            if (contentW > availableWidth)
+            {
+                PreviewHScrollBar.Visibility = Visibility.Visible;
+                PreviewHScrollBar.Minimum = 0;
+                PreviewHScrollBar.Maximum = scrollRange;
+                PreviewHScrollBar.ViewportSize = scrollRange * (availableWidth / contentW);
+                PreviewHScrollBar.Value = (scrollRange / 2.0) - (_panX / maxPanX) * (scrollRange / 2.0);
+            }
+            else
+            {
+                PreviewHScrollBar.Visibility = Visibility.Collapsed;
+            }
         }
 
-        if (contentH > availableHeight && availableHeight > 0)
+        if (availableHeight > 0)
         {
-            double maxPanY = (contentH - availableHeight) / 2.0;
-            PreviewVScrollBar.Visibility = Visibility.Visible;
-            PreviewVScrollBar.Minimum = 0;
-            PreviewVScrollBar.Maximum = scrollRange;
-            PreviewVScrollBar.ViewportSize = scrollRange * (availableHeight / contentH);
-            PreviewVScrollBar.Value = (scrollRange / 2.0) + (_panY / maxPanY) * (scrollRange / 2.0);
-        }
-        else
-        {
-            PreviewVScrollBar.Visibility = Visibility.Collapsed;
+            double maxPanY = (contentH + availableHeight) / 2.0;
+            if (contentH > availableHeight)
+            {
+                PreviewVScrollBar.Visibility = Visibility.Visible;
+                PreviewVScrollBar.Minimum = 0;
+                PreviewVScrollBar.Maximum = scrollRange;
+                PreviewVScrollBar.ViewportSize = scrollRange * (availableHeight / contentH);
+                PreviewVScrollBar.Value = (scrollRange / 2.0) + (_panY / maxPanY) * (scrollRange / 2.0);
+            }
+            else
+            {
+                PreviewVScrollBar.Visibility = Visibility.Collapsed;
+            }
         }
 
         _isUpdatingScrollbar = false;
@@ -1162,18 +1332,19 @@ public partial class UIEditorView : LifecycleUserControl
 
         if (sender == PreviewHScrollBar && contentW > availableWidth)
         {
-            double maxPanX = (contentW - availableWidth) / 2.0;
+            double maxPanX = (contentW + availableWidth) / 2.0;
             _panX = -((e.NewValue - scrollRange / 2.0) / (scrollRange / 2.0) * maxPanX);
             ClampPan();
             PreviewTranslateTransform.X = _panX;
         }
         else if (sender == PreviewVScrollBar && contentH > availableHeight)
         {
-            double maxPanY = (contentH - availableHeight) / 2.0;
+            double maxPanY = (contentH + availableHeight) / 2.0;
             _panY = (e.NewValue - scrollRange / 2.0) / (scrollRange / 2.0) * maxPanY;
             ClampPan();
             PreviewTranslateTransform.Y = _panY;
         }
+        Dispatcher.InvokeAsync(UpdateSelectionBox);
     }
 
     private void SquareAspectToggle_Click(object sender, RoutedEventArgs e)
@@ -1213,60 +1384,54 @@ public partial class UIEditorView : LifecycleUserControl
             return;
         }
 
-        double cw = ContainerWidth;
-        double ch = ContainerHeight;
-
-        if (cw <= 0 || ch <= 0) return;
-
-        double minX = double.MaxValue;
-        double minY = double.MaxValue;
-        double maxR = double.MinValue;
-        double maxB = double.MinValue;
+        double minScrX = double.MaxValue, minScrY = double.MaxValue;
+        double maxScrR = double.MinValue, maxScrB = double.MinValue;
+        bool any = false;
 
         foreach (UIElementModel el in ElementsList.SelectedItems)
         {
-            double normW = el.Width;
-            double normH = el.Height;
-
-            if (el.Type == ElementType.Text)
+            if (VisualPreviewContainer.ItemContainerGenerator.ContainerFromItem(el) is FrameworkElement container)
             {
-                if (VisualPreviewContainer.ItemContainerGenerator.ContainerFromItem(el) is FrameworkElement container)
-                {
-                    var grid = VisualTreeHelper.GetChild(container, 0) as FrameworkElement;
-                    if (grid != null && grid.ActualWidth > 0)
-                    {
-                        normW = grid.ActualWidth / cw;
-                        normH = grid.ActualHeight / ch;
-                    }
-                }
-            }
+                if (container.ActualWidth <= 0 || container.ActualHeight <= 0) continue;
 
-            if (el.X < minX) minX = el.X;
-            if (el.Y < minY) minY = el.Y;
-            if (el.X + normW > maxR) maxR = el.X + normW;
-            if (el.Y + normH > maxB) maxB = el.Y + normH;
+                FrameworkElement inner;
+                if (el.Type == ElementType.Text)
+                    inner = VisualTreeHelper.GetChild(container, 0) as FrameworkElement;
+                else
+                    inner = container;
+
+                if (inner == null) continue;
+
+                Point tl = container.TranslatePoint(new Point(0, 0), SelectionOverlayCanvas);
+                Point br = inner.TranslatePoint(new Point(inner.ActualWidth, inner.ActualHeight), SelectionOverlayCanvas);
+
+                if (tl.X < minScrX) minScrX = tl.X;
+                if (tl.Y < minScrY) minScrY = tl.Y;
+                if (br.X > maxScrR) maxScrR = br.X;
+                if (br.Y > maxScrB) maxScrB = br.Y;
+                any = true;
+            }
         }
 
-        Canvas.SetLeft(SelectionBox, minX * cw);
-        Canvas.SetTop(SelectionBox, minY * ch);
-        SelectionBox.Width = (maxR - minX) * cw;
-        SelectionBox.Height = (maxB - minY) * ch;
+        if (!any)
+        {
+            SelectionBox.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        Canvas.SetLeft(SelectionBox, minScrX);
+        Canvas.SetTop(SelectionBox, minScrY);
+        SelectionBox.Width = maxScrR - minScrX;
+        SelectionBox.Height = maxScrB - minScrY;
         SelectionBox.Visibility = Visibility.Visible;
 
-        UpdateThumbsSize(SelectionBox.Width, SelectionBox.Height);
+        UpdateThumbsSize();
     }
 
-    private void UpdateThumbsSize(double boxWidth, double boxHeight)
+    private void UpdateThumbsSize()
     {
-        double minDim = Math.Min(boxWidth, boxHeight);
-        double scale = PreviewScaleTransform.ScaleX;
-        if (scale < 0.1) scale = 0.1;
-
-        double baseCornerSize = minDim < 25 ? 4 : (minDim < 50 ? 5 : 6);
-        double baseEdgeThickness = minDim < 25 ? 2 : (minDim < 50 ? 3 : 4);
-
-        double cornerSize = Math.Max(baseCornerSize / scale, 3);
-        double edgeThickness = Math.Max(baseEdgeThickness / scale, 1.5);
+        double cornerSize = 5.0;
+        double edgeThickness = 3.0;
         double offset = -cornerSize / 2.0;
 
         ResizeNW.Width = cornerSize;
@@ -1484,7 +1649,8 @@ public partial class UIEditorView : LifecycleUserControl
             return;
         }
 
-        if (HotkeyMatcher.IsMatch(e, hotkeys.RedoKey, hotkeys.RedoModifiers))
+        if (HotkeyMatcher.IsMatch(e, hotkeys.RedoKey, hotkeys.RedoModifiers) ||
+            (e.Key == Key.Y && Keyboard.Modifiers == ModifierKeys.Control))
         {
             _historyManager.Redo(el => ElementsList.SelectedItem = el);
             Dispatcher.InvokeAsync(UpdateSelectionBox);
@@ -1497,7 +1663,7 @@ public partial class UIEditorView : LifecycleUserControl
         {
             _historyManager.SaveState();
             bool isShiftPressed = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
-            double step = isShiftPressed ? 0.05 : 0.005;
+            double step = isShiftPressed ? 0.01 : 0.001;
 
             var selectedList = ElementsList.SelectedItems.Cast<UIElementModel>().ToList();
 
@@ -1571,6 +1737,11 @@ public partial class UIEditorView : LifecycleUserControl
         CollectionViewSource.GetDefaultView(Elements).Refresh();
     }
 
+    private void FontComboBox_DropDownOpened(object sender, EventArgs e)
+    {
+        _historyManager.SaveState();
+    }
+
     private async void GenerateUI_Click(object sender, RoutedEventArgs e)
     {
         var btn = sender as Button ?? GenerateButton;
@@ -1579,6 +1750,7 @@ public partial class UIEditorView : LifecycleUserControl
         btn.IsEnabled = false;
         try
         {
+            _historyManager.MarkSaved();
             bool success = CompileUI();
             btn.Content = success ? "✓ Generated!" : "✗ Failed";
         }

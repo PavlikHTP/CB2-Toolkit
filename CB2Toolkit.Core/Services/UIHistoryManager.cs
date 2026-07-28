@@ -10,16 +10,20 @@ public class UIServiceManager
     private readonly Stack<List<UIElementModel>> _redoStack = new();
     private const int MaxSteps = 999;
     private bool _isOperating;
+    public bool HasUnsavedChanges { get; private set; }
 
     public UIServiceManager(ObservableCollection<UIElementModel> elements)
     {
         _elements = elements;
     }
 
+    public void MarkSaved() => HasUnsavedChanges = false;
+
     public void SaveState()
     {
         if (_isOperating) return;
 
+        HasUnsavedChanges = true;
         var snapshot = _elements.Select(CloneElement).ToList();
         _undoStack.Push(snapshot);
         _redoStack.Clear();
@@ -107,7 +111,8 @@ public class UIServiceManager
             Opacity = source.Opacity,
             Text = source.Text,
             MiscValue = source.MiscValue,
-            GroupId = source.GroupId 
+            GroupId = source.GroupId,
+            Font = source.Font
         };
     }
 }

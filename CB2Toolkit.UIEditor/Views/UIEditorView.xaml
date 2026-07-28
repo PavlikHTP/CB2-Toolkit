@@ -17,7 +17,7 @@
         <utils:FontSizeConverter x:Key="FontSizeConverter" />
 
         <Style x:Key="AnimatedBoundingBoxStyle" TargetType="Border">
-            <Setter Property="BorderThickness" Value="1.5" />
+            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BorderBrush">
                 <Setter.Value>
                     <SolidColorBrush Color="#4D7CFE" Opacity="1.0" />
@@ -208,6 +208,73 @@
             </Setter>
         </Style>
 
+        <Style x:Key="CustomScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Background" Value="#121214" />
+            <Setter Property="MinWidth" Value="12" />
+            <Setter Property="MinHeight" Value="12" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Border Background="{TemplateBinding Background}">
+                            <Track Name="PART_Track"
+                                   Value="{TemplateBinding Value}"
+                                   Minimum="{TemplateBinding Minimum}"
+                                   Maximum="{TemplateBinding Maximum}"
+                                   ViewportSize="{TemplateBinding ViewportSize}"
+                                   Orientation="{TemplateBinding Orientation}">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="#3F3F46" CornerRadius="4" Margin="2" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CustomScrollViewerStyle" TargetType="ScrollViewer">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollViewer">
+                        <Grid Background="{TemplateBinding Background}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <ScrollContentPresenter Grid.Column="0" Grid.Row="0" Margin="{TemplateBinding Padding}"
+                                                    Content="{TemplateBinding Content}"
+                                                    ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                    CanContentScroll="{TemplateBinding CanContentScroll}" />
+                            <ScrollBar Name="PART_VerticalScrollBar" Grid.Column="1" Grid.Row="0"
+                                       Style="{StaticResource CustomScrollBarStyle}"
+                                       Value="{TemplateBinding VerticalOffset}"
+                                       Maximum="{TemplateBinding ScrollableHeight}"
+                                       ViewportSize="{TemplateBinding ViewportHeight}"
+                                       Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" />
+                            <ScrollBar Name="PART_HorizontalScrollBar" Grid.Column="0" Grid.Row="1"
+                                       Orientation="Horizontal"
+                                       Style="{StaticResource CustomScrollBarStyle}"
+                                       Value="{TemplateBinding HorizontalOffset}"
+                                       Maximum="{TemplateBinding ScrollableWidth}"
+                                       ViewportSize="{TemplateBinding ViewportWidth}"
+                                       Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}" />
+                            <Rectangle Grid.Column="1" Grid.Row="1" Fill="#121214" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
             <Setter Property="Background" Value="#232329" />
             <Setter Property="Foreground" Value="#E2E2E9" />
@@ -261,7 +328,7 @@
                                 <Border Name="DropDownBorder" Background="#1A1A1E" BorderBrush="#3F3F46"
                                         BorderThickness="1" CornerRadius="4" MinWidth="{TemplateBinding ActualWidth}"
                                         MaxHeight="200">
-                                    <ScrollViewer>
+                                    <ScrollViewer Style="{StaticResource CustomScrollViewerStyle}">
                                         <StackPanel IsItemsHost="True"
                                                     KeyboardNavigation.DirectionalNavigation="Contained" />
                                     </ScrollViewer>
@@ -317,65 +384,6 @@
             <Setter Property="Padding" Value="6,4" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="Background" Value="Transparent" />
-        </Style>
-
-        <Style TargetType="ScrollBar">
-            <Setter Property="Background" Value="#121214" />
-            <Setter Property="MinWidth" Value="12" />
-            <Setter Property="MinHeight" Value="12" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ScrollBar">
-                        <Border Background="{TemplateBinding Background}">
-                            <Track Name="PART_Track">
-                                <Track.Thumb>
-                                    <Thumb>
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="Thumb">
-                                                <Border Background="#3F3F46" CornerRadius="4" Margin="2" />
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                </Track.Thumb>
-                            </Track>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style TargetType="ScrollViewer">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ScrollViewer">
-                        <Grid Background="{TemplateBinding Background}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <ScrollContentPresenter Grid.Column="0" Grid.Row="0" Margin="{TemplateBinding Padding}"
-                                                    Content="{TemplateBinding Content}"
-                                                    ContentTemplate="{TemplateBinding ContentTemplate}"
-                                                    CanContentScroll="{TemplateBinding CanContentScroll}" />
-                            <ScrollBar Name="PART_VerticalScrollBar" Grid.Column="1" Grid.Row="0"
-                                       Value="{TemplateBinding VerticalOffset}"
-                                       Maximum="{TemplateBinding ScrollableHeight}"
-                                       ViewportSize="{TemplateBinding ViewportHeight}"
-                                       Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" />
-                            <ScrollBar Name="PART_HorizontalScrollBar" Grid.Column="0" Grid.Row="1"
-                                       Orientation="Horizontal" Value="{TemplateBinding HorizontalOffset}"
-                                       Maximum="{TemplateBinding ScrollableWidth}"
-                                       ViewportSize="{TemplateBinding ViewportWidth}"
-                                       Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}" />
-                            <Rectangle Grid.Column="1" Grid.Row="1" Fill="#121214" />
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
 
         <Style TargetType="ListBoxItem">
@@ -673,6 +681,9 @@
                             </TransformGroup>
                         </Grid.RenderTransform>
 
+                            <Rectangle Stretch="Fill" Stroke="#3F3F46" StrokeThickness="1"
+                                       StrokeDashArray="4,2" IsHitTestVisible="False" />
+
                             <Image Stretch="UniformToFill" IsHitTestVisible="False">
                                 <Image.Source>
                                     <MultiBinding Converter="{StaticResource PathConverter}">
@@ -846,88 +857,94 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <Canvas x:Name="SelectionOverlayCanvas" Background="{x:Null}">
-                                <Grid x:Name="SelectionBox" Visibility="Collapsed" Canvas.Left="0" Canvas.Top="0"
-                                      Width="100" Height="100">
-                                    <Border Style="{StaticResource AnimatedBoundingBoxStyle}" IsHitTestVisible="False" />
-
-                                    <Thumb x:Name="ResizeNW" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="NW"
-                                           HorizontalAlignment="Left" VerticalAlignment="Top">
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="Thumb">
-                                                <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                    <Thumb x:Name="ResizeNE" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="NE"
-                                           HorizontalAlignment="Right" VerticalAlignment="Top">
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="Thumb">
-                                                <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                    <Thumb x:Name="ResizeSW" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="SW"
-                                           HorizontalAlignment="Left" VerticalAlignment="Bottom">
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="Thumb">
-                                                <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                    <Thumb x:Name="ResizeSE" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="SE"
-                                           HorizontalAlignment="Right" VerticalAlignment="Bottom">
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="Thumb">
-                                                <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-
-                                    <Thumb x:Name="ResizeN" Cursor="SizeNS" DragDelta="ResizeThumb_DragDelta" Tag="N"
-                                           HorizontalAlignment="Stretch" VerticalAlignment="Top">
-                                        <Thumb.Template>
-                                            <ControlTemplate>
-                                                <Border Background="Transparent" />
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                    <Thumb x:Name="ResizeS" Cursor="SizeNS" DragDelta="ResizeThumb_DragDelta" Tag="S"
-                                           HorizontalAlignment="Stretch" VerticalAlignment="Bottom">
-                                        <Thumb.Template>
-                                            <ControlTemplate>
-                                                <Border Background="Transparent" />
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                    <Thumb x:Name="ResizeW" Cursor="SizeWE" DragDelta="ResizeThumb_DragDelta" Tag="W"
-                                           HorizontalAlignment="Left" VerticalAlignment="Stretch">
-                                        <Thumb.Template>
-                                            <ControlTemplate>
-                                                <Border Background="Transparent" />
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                    <Thumb x:Name="ResizeE" Cursor="SizeWE" DragDelta="ResizeThumb_DragDelta" Tag="E"
-                                           HorizontalAlignment="Right" VerticalAlignment="Stretch">
-                                        <Thumb.Template>
-                                            <ControlTemplate>
-                                                <Border Background="Transparent" />
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
-                                </Grid>
-                            </Canvas>
-
                     </Grid>
+
+                        <Canvas x:Name="SelectionOverlayCanvas" Grid.Row="0" Grid.Column="0"
+                                Background="{x:Null}">
+                            <Rectangle x:Name="MarqueeRect" Visibility="Collapsed"
+                                       Stroke="#4D7CFE" StrokeThickness="1" Fill="#224D7CFE"
+                                       StrokeDashArray="4,2" IsHitTestVisible="False" />
+                            <Grid x:Name="SelectionBox" Visibility="Collapsed" Canvas.Left="0" Canvas.Top="0"
+                                  Width="100" Height="100">
+                                <Border Style="{StaticResource AnimatedBoundingBoxStyle}" IsHitTestVisible="False" />
+
+                                <Thumb x:Name="ResizeNW" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="NW"
+                                       HorizontalAlignment="Left" VerticalAlignment="Top">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                                <Thumb x:Name="ResizeNE" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="NE"
+                                       HorizontalAlignment="Right" VerticalAlignment="Top">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                                <Thumb x:Name="ResizeSW" Cursor="SizeNESW" DragDelta="ResizeThumb_DragDelta" Tag="SW"
+                                       HorizontalAlignment="Left" VerticalAlignment="Bottom">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                                <Thumb x:Name="ResizeSE" Cursor="SizeNWSE" DragDelta="ResizeThumb_DragDelta" Tag="SE"
+                                       HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Background="#4D7CFE" BorderBrush="White" BorderThickness="1" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+
+                                <Thumb x:Name="ResizeN" Cursor="SizeNS" DragDelta="ResizeThumb_DragDelta" Tag="N"
+                                       HorizontalAlignment="Stretch" VerticalAlignment="Top">
+                                    <Thumb.Template>
+                                        <ControlTemplate>
+                                            <Border Background="Transparent" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                                <Thumb x:Name="ResizeS" Cursor="SizeNS" DragDelta="ResizeThumb_DragDelta" Tag="S"
+                                       HorizontalAlignment="Stretch" VerticalAlignment="Bottom">
+                                    <Thumb.Template>
+                                        <ControlTemplate>
+                                            <Border Background="Transparent" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                                <Thumb x:Name="ResizeW" Cursor="SizeWE" DragDelta="ResizeThumb_DragDelta" Tag="W"
+                                       HorizontalAlignment="Left" VerticalAlignment="Stretch">
+                                    <Thumb.Template>
+                                        <ControlTemplate>
+                                            <Border Background="Transparent" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                                <Thumb x:Name="ResizeE" Cursor="SizeWE" DragDelta="ResizeThumb_DragDelta" Tag="E"
+                                       HorizontalAlignment="Right" VerticalAlignment="Stretch">
+                                    <Thumb.Template>
+                                        <ControlTemplate>
+                                            <Border Background="Transparent" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Grid>
+                        </Canvas>
 
                         <ScrollBar x:Name="PreviewHScrollBar" Grid.Row="1" Grid.Column="0"
                                    Orientation="Horizontal" Visibility="Collapsed"
+                                   Style="{StaticResource CustomScrollBarStyle}"
                                    Minimum="0" Maximum="100" Value="0"
                                    SmallChange="5" LargeChange="20"
                                    ValueChanged="PreviewScrollBar_ValueChanged" />
                         <ScrollBar x:Name="PreviewVScrollBar" Grid.Row="0" Grid.Column="1"
                                    Orientation="Vertical" Visibility="Collapsed"
+                                   Style="{StaticResource CustomScrollBarStyle}"
                                    Minimum="0" Maximum="100" Value="0"
                                    SmallChange="5" LargeChange="20"
                                    ValueChanged="PreviewScrollBar_ValueChanged" />
@@ -950,7 +967,7 @@
                 </Border>
                 <Border Grid.Row="1" Background="#16161A" BorderBrush="#232329" BorderThickness="1"
                         CornerRadius="0,0,6,6" Padding="16">
-                    <ScrollViewer>
+                    <ScrollViewer Style="{StaticResource CustomScrollViewerStyle}">
                         <StackPanel x:Name="PropertiesPanel" Visibility="Collapsed">
                             <TextBlock Text="Element Name (Variable)" Foreground="#6B7280" FontSize="11"
                                        FontWeight="Bold" Margin="0,0,0,4" />
@@ -1063,11 +1080,20 @@
                                 </StackPanel.Style>
                                 <TextBlock Text="Font ID / Type" Foreground="#6B7280" FontSize="11" FontWeight="Bold"
                                            Margin="0,0,0,4" />
-                                <ComboBox
-                                    ItemsSource="{Binding FontsList, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    SelectedItem="{Binding SelectedItem.Font, ElementName=ElementsList}"
-                                    Style="{StaticResource ModernComboBoxStyle}"
-                                    Margin="0,0,0,14" />
+                                 <ComboBox
+                                     ItemsSource="{Binding FontsList, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                     SelectedItem="{Binding SelectedItem.Font, ElementName=ElementsList}"
+                                     Style="{StaticResource ModernComboBoxStyle}"
+                                     Margin="0,0,0,14"
+                                     DropDownOpened="FontComboBox_DropDownOpened">
+                                     <ComboBox.ItemTemplate>
+                                         <DataTemplate>
+                                             <TextBlock Text="{Binding}"
+                                                        FontFamily="{Binding Converter={StaticResource FontFamilyConverter}}" />
+                                         </DataTemplate>
+                                     </ComboBox.ItemTemplate>
+                                 </ComboBox>
+
                             </StackPanel>
 
                             <TextBlock Text="Color &amp; Appearance" Foreground="#6B7280" FontSize="11"
@@ -1150,10 +1176,12 @@
                                             <TextBlock Text="R" Foreground="#EF4444" FontWeight="Bold" FontSize="11"
                                                        VerticalAlignment="Center" />
                                             <Slider Grid.Column="1" Minimum="0" Maximum="255"
-                                                    IsSnapToTickEnabled="True"
-                                                    Value="{Binding SelectedItem.R, ElementName=ElementsList}"
-                                                    Margin="8,0" Style="{StaticResource ModernSliderStyle}"
-                                                    ValueChanged="ColorSlider_ValueChanged" />
+                                                     IsSnapToTickEnabled="True"
+                                                     Value="{Binding SelectedItem.R, ElementName=ElementsList}"
+                                                     Margin="8,0" Style="{StaticResource ModernSliderStyle}"
+                                                     ValueChanged="ColorSlider_ValueChanged"
+                                                     PreviewMouseDown="ColorSlider_PreviewMouseDown"
+                                                     PreviewKeyDown="ColorSlider_PreviewKeyDown" />
                                             <TextBox Grid.Column="2"
                                                      Text="{Binding SelectedItem.R, ElementName=ElementsList}"
                                                      Style="{StaticResource ModernTextBoxStyle}" Padding="4,2"
@@ -1170,10 +1198,12 @@
                                             <TextBlock Text="G" Foreground="#22C55E" FontWeight="Bold" FontSize="11"
                                                        VerticalAlignment="Center" />
                                             <Slider Grid.Column="1" Minimum="0" Maximum="255"
-                                                    IsSnapToTickEnabled="True"
-                                                    Value="{Binding SelectedItem.G, ElementName=ElementsList}"
-                                                    Margin="8,0" Style="{StaticResource ModernSliderStyle}"
-                                                    ValueChanged="ColorSlider_ValueChanged" />
+                                                     IsSnapToTickEnabled="True"
+                                                     Value="{Binding SelectedItem.G, ElementName=ElementsList}"
+                                                     Margin="8,0" Style="{StaticResource ModernSliderStyle}"
+                                                     ValueChanged="ColorSlider_ValueChanged"
+                                                     PreviewMouseDown="ColorSlider_PreviewMouseDown"
+                                                     PreviewKeyDown="ColorSlider_PreviewKeyDown" />
                                             <TextBox Grid.Column="2"
                                                      Text="{Binding SelectedItem.G, ElementName=ElementsList}"
                                                      Style="{StaticResource ModernTextBoxStyle}" Padding="4,2"
@@ -1190,10 +1220,12 @@
                                             <TextBlock Text="B" Foreground="#3B82F6" FontWeight="Bold" FontSize="11"
                                                        VerticalAlignment="Center" />
                                             <Slider Grid.Column="1" Minimum="0" Maximum="255"
-                                                    IsSnapToTickEnabled="True"
-                                                    Value="{Binding SelectedItem.B, ElementName=ElementsList}"
-                                                    Margin="8,0" Style="{StaticResource ModernSliderStyle}"
-                                                    ValueChanged="ColorSlider_ValueChanged" />
+                                                     IsSnapToTickEnabled="True"
+                                                     Value="{Binding SelectedItem.B, ElementName=ElementsList}"
+                                                     Margin="8,0" Style="{StaticResource ModernSliderStyle}"
+                                                     ValueChanged="ColorSlider_ValueChanged"
+                                                     PreviewMouseDown="ColorSlider_PreviewMouseDown"
+                                                     PreviewKeyDown="ColorSlider_PreviewKeyDown" />
                                             <TextBox Grid.Column="2"
                                                      Text="{Binding SelectedItem.B, ElementName=ElementsList}"
                                                      Style="{StaticResource ModernTextBoxStyle}" Padding="4,2"

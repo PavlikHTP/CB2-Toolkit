@@ -29,6 +29,7 @@ public static class RegexPatterns
     public static readonly Regex WordTag = new(@"<Word>(.*?)</Word>", RegexOptions.Compiled);
 
     public static readonly Regex IncludeIncomplete = new(@"^\s*#include\s*""$", RegexOptions.Compiled);
+    public static readonly Regex IncludeLine = new(@"^\s*#\s*include\s*[""<]", RegexOptions.Compiled);
 
     public static readonly Regex UiElementCreate = new(@"^(?<name>\w+)\[idx\]\s*=\s*gfx\.Create(?<type>\w+)\((?<args>.*)\);", RegexOptions.Compiled);
 
