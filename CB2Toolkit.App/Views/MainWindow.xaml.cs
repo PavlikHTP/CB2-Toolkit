@@ -1,7 +1,11 @@
 ﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using System.ComponentModel;
 using System.Windows.Data;
 using System.Reflection;
@@ -107,6 +111,18 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (DropOverlay.Visibility == Visibility.Visible)
+        {
+            bool isModifier = e.Key is Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift
+                or Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin or Key.System;
+            if (!isModifier)
+            {
+                HideDropOverlay();
+                e.Handled = true;
+                return;
+            }
+        }
+
         HotkeySettings hotkeys = SettingsService.Instance.Current.Hotkeys;
 
         if (HotkeyMatcher.IsMatch(e, hotkeys.ConsoleKey, hotkeys.ConsoleModifiers))
@@ -199,14 +215,12 @@ public partial class MainWindow : Window
     private void NavigateHistory(int direction)
     {
         if (_commandHistory.Count == 0) return;
-
-        // Если индекс выходит за границы, сбрасываем в конец (к черновику)
+        
         if (_historyIndex < 0 || _historyIndex > _commandHistory.Count)
         {
             _historyIndex = _commandHistory.Count;
         }
-
-        // Сохраняем введенный текст как черновик при попытке листать вверх
+        
         if (_historyIndex == _commandHistory.Count && direction < 0)
         {
             _currentInputDraft = ConsoleInputTextBox.Text;
@@ -348,4 +362,115 @@ public partial class MainWindow : Window
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Maximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+    private readonly DispatcherTimer _dropHideTimer = new() { Interval = TimeSpan.FromMilliseconds(600) };
+
+    private void Root_DragEnter(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            e.Effects = DragDropEffects.Copy;
+            _dropHideTimer.Stop();
+            ShowDropOverlay();
+        }
+        else
+        {
+            e.Effects = DragDropEffects.None;
+        }
+
+        e.Handled = true;
+    }
+
+    private void Root_DragLeave(object sender, DragEventArgs e)
+    {
+        _dropHideTimer.Stop();
+        _dropHideTimer.Tick -= DropHideTimer_Tick;
+        _dropHideTimer.Tick += DropHideTimer_Tick;
+        _dropHideTimer.Start();
+    }
+
+    private void DropHideTimer_Tick(object? sender, EventArgs e)
+    {
+        _dropHideTimer.Stop();
+        HideDropOverlay();
+    }
+
+    private void ShowDropOverlay()
+    {
+        if (DropOverlay.Visibility == Visibility.Visible) return;
+
+        DropOverlay.Visibility = Visibility.Visible;
+        DropOverlay.BeginAnimation(OpacityProperty,
+            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(140))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            });
+
+        var transformGroup = new TransformGroup();
+        transformGroup.Children.Add(new ScaleTransform(1, 1));
+        transformGroup.Children.Add(new TranslateTransform(0, 0));
+        DropOverlayCard.RenderTransform = transformGroup;
+        DropOverlayCard.RenderTransformOrigin = new Point(0.5, 0.5);
+        DropOverlayCard.Opacity = 1;
+        DropOverlayCard.BeginAnimation(OpacityProperty, null);
+
+        _pulseScale = (ScaleTransform)transformGroup.Children[0];
+        var pulse = new DoubleAnimation(0.985, 1.015, TimeSpan.FromMilliseconds(1600))
+        {
+            AutoReverse = true,
+            RepeatBehavior = RepeatBehavior.Forever
+        };
+        _pulseScale.BeginAnimation(ScaleTransform.ScaleXProperty, pulse);
+        _pulseScale.BeginAnimation(ScaleTransform.ScaleYProperty, pulse.Clone());
+    }
+
+    private ScaleTransform? _pulseScale;
+
+    private void HideDropOverlay()
+    {
+        if (DropOverlay.Visibility != Visibility.Visible) return;
+
+        _pulseScale?.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        _pulseScale?.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+
+        var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(120));
+        fade.Completed += (_, _) =>
+        {
+            DropOverlay.Visibility = Visibility.Collapsed;
+            DropOverlay.Opacity = 1;
+        };
+        DropOverlay.BeginAnimation(OpacityProperty, fade);
+    }
+
+    private void Root_Drop(object sender, DragEventArgs e)
+    {
+        _dropHideTimer.Stop();
+        HideDropOverlay();
+
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+        if (e.Data.GetData(DataFormats.FileDrop) is not string[] paths) return;
+
+        AngelScriptEditorView? editor = MainContentHolder.Content as AngelScriptEditorView;
+        if (editor == null)
+        {
+            NavigateToEditor();
+            editor = MainContentHolder.Content as AngelScriptEditorView;
+        }
+        if (editor == null) return;
+
+        foreach (string path in paths)
+        {
+            try
+            {
+                if (Directory.Exists(path)) _ = editor.OpenProject(path);
+                else if (File.Exists(path)) editor.OpenFile(path);
+            }
+            catch (Exception ex)
+            {
+                LoggerService.Instance.LogError($"[Drop Error] {ex.Message}");
+            }
+        }
+
+        e.Handled = true;
+    }
 }

@@ -30,10 +30,7 @@ public class ShellService
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern IntPtr ShellExecute(IntPtr hwnd, string lpOperation, string lpFile, string lpParameters, string lpDirectory, int nShowCmd);
-
-    /// <summary>
-    /// Opens the parent folder in Windows Explorer and selects the specified file or directory.
-    /// </summary>
+    
     public void RevealInExplorer(string path)
     {
         if (string.IsNullOrEmpty(path)) return;
@@ -83,11 +80,7 @@ public class ShellService
         {
         }
     }
-
-    /// <summary>
-    /// Opens the specified directory directly from the inside in Windows Explorer using native Shell API.
-    /// Creates the directory if it does not exist.
-    /// </summary>
+    
     public void OpenFolder(string folderPath)
     {
         if (string.IsNullOrWhiteSpace(folderPath)) return;

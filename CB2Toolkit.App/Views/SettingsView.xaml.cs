@@ -5,12 +5,14 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CB2Toolkit.CodeEditor.Models.Enums;
+using CB2Toolkit.CodeEditor.Utils;
 using CB2Toolkit.CodeEditor.Views;
 using CB2Toolkit.Core;
 using CB2Toolkit.Core.Models.Enums;
 using CB2Toolkit.Core.Models.Settings;
 using CB2Toolkit.Core.Plugins;
 using CB2Toolkit.Core.Services;
+using CB2Toolkit.Core.Utilities.Extensions;
 using Microsoft.Win32;
 
 namespace CB2Toolkit.Views;
@@ -48,6 +50,8 @@ public partial class SettingsView : UserControl
         InitializeComponent();
         LoadSettingsIntoUi();
         LoadPluginsUi();
+
+        PathTextBoxHelper.Attach(AsCompilerPathTextBox);
     }
 
     private void LoadSettingsIntoUi()
@@ -64,6 +68,10 @@ public partial class SettingsView : UserControl
         PriorityComboBox.SelectedValue = settings.FetchPriority.ToString();
 
         UpdatePluginsButton();
+
+        UpdateSpellCheckButton();
+        UpdateAutoSaveButton();
+        AutoSaveIntervalTextBox.Text = settings.AutoSaveIntervalMinutes.ToString();
 
         LoadHotkey(HideSearchPanelHotkeyButton, settings.Hotkeys.HideSearchPanelKey, settings.Hotkeys.HideSearchPanelModifiers);
         LoadHotkey(ToggleCommentHotkeyButton, settings.Hotkeys.ToggleCommentKey, settings.Hotkeys.ToggleCommentModifiers);
@@ -82,6 +90,7 @@ public partial class SettingsView : UserControl
         LoadHotkey(SelectAllHotkeyButton, settings.Hotkeys.SelectAllKey, settings.Hotkeys.SelectAllModifiers);
         LoadHotkey(FormatHotkeyButton, settings.Hotkeys.FormatKey, settings.Hotkeys.FormatModifiers);
         LoadHotkey(GoToDefinitionHotkeyButton, settings.Hotkeys.GoToDefinitionKey, settings.Hotkeys.GoToDefinitionModifiers);
+        LoadHotkey(AutoCompleteHotkeyButton, settings.Hotkeys.AutoCompleteKey, settings.Hotkeys.AutoCompleteModifiers);
         LoadHotkey(ConsoleHotkeyButton, settings.Hotkeys.ConsoleKey, settings.Hotkeys.ConsoleModifiers);
     }
 
@@ -92,7 +101,7 @@ public partial class SettingsView : UserControl
         settings.SyntaxGitHubUrl = HighlightGitHubUrlTextBox.Text.Trim();
         settings.SyntaxPastebinUrl = HighlightPastebinUrlTextBox.Text.Trim();
         settings.CompletionGitHubUrl = CompletionGitHubUrlTextBox.Text.Trim();
-        settings.AngelScriptCompilerPath = AsCompilerPathTextBox.Text.Trim();
+        settings.AngelScriptCompilerPath = AsCompilerPathTextBox.Text.SanitizePath();
         settings.EditorFontSize = FontSizeSlider.Value;
 
         if (PriorityComboBox.SelectedValue is string tag && Enum.TryParse<FetchPrioritySource>(tag, out var priority))
@@ -117,6 +126,7 @@ public partial class SettingsView : UserControl
         SaveHotkey(SelectAllHotkeyButton, (k, m) => { settings.Hotkeys.SelectAllKey = k; settings.Hotkeys.SelectAllModifiers = m; });
         SaveHotkey(FormatHotkeyButton, (k, m) => { settings.Hotkeys.FormatKey = k; settings.Hotkeys.FormatModifiers = m; });
         SaveHotkey(GoToDefinitionHotkeyButton, (k, m) => { settings.Hotkeys.GoToDefinitionKey = k; settings.Hotkeys.GoToDefinitionModifiers = m; });
+        SaveHotkey(AutoCompleteHotkeyButton, (k, m) => { settings.Hotkeys.AutoCompleteKey = k; settings.Hotkeys.AutoCompleteModifiers = m; });
         SaveHotkey(ConsoleHotkeyButton, (k, m) => { settings.Hotkeys.ConsoleKey = k; settings.Hotkeys.ConsoleModifiers = m; });
     }
 
@@ -366,7 +376,7 @@ public partial class SettingsView : UserControl
 
         if (openFileDialog.ShowDialog() == true)
         {
-            AsCompilerPathTextBox.Text = openFileDialog.FileName;
+            AsCompilerPathTextBox.Text = openFileDialog.FileName.SanitizePath();
         }
     }
 
@@ -378,6 +388,74 @@ public partial class SettingsView : UserControl
         }
 
         ShellService.Instance.OpenFolder(AppMetadata.AppDataFolder);
+    }
+
+    private void OpenDictionaries_Click(object sender, RoutedEventArgs e)
+    {
+        string folder = SpellCheckDictionaryService.DictionariesFolder;
+        SpellCheckDictionaryService.Instance.EnsureDictionariesExist();
+        ShellService.Instance.OpenFolder(folder);
+    }
+
+    private async void ReloadDictionaries_Click(object sender, RoutedEventArgs e)
+    {
+        ReloadDictionariesButton.IsEnabled = false;
+        ReloadDictionariesButton.Content = "Loading...";
+        try
+        {
+            await Task.Run(() => SpellCheckDictionaryService.Instance.Load());
+            ModernMessageBox.Show(Window.GetWindow(this),
+                "Dictionaries reloaded from the Dictionaries folder.", AppMetadata.Title);
+        }
+        finally
+        {
+            ReloadDictionariesButton.IsEnabled = true;
+            ReloadDictionariesButton.Content = "Reload Dictionaries";
+        }
+    }
+
+    private void SpellCheckToggle_Click(object sender, RoutedEventArgs e)
+    {
+        var settings = SettingsService.Instance.Current;
+        settings.SpellCheckEnabled = !settings.SpellCheckEnabled;
+        _ = SettingsService.Instance.SaveAsync();
+        UpdateSpellCheckButton();
+    }
+
+    private void UpdateSpellCheckButton()
+    {
+        bool enabled = SettingsService.Instance.Current.SpellCheckEnabled;
+        SpellCheckToggleButton.Content = enabled ? "Disable" : "Enable";
+        SpellCheckToggleButton.Background = enabled
+            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"))
+            : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4D7CFE"));
+    }
+
+    private void AutoSaveToggle_Click(object sender, RoutedEventArgs e)
+    {
+        var settings = SettingsService.Instance.Current;
+        settings.AutoSaveEnabled = !settings.AutoSaveEnabled;
+        _ = SettingsService.Instance.SaveAsync();
+        UpdateAutoSaveButton();
+    }
+
+    private void UpdateAutoSaveButton()
+    {
+        bool enabled = SettingsService.Instance.Current.AutoSaveEnabled;
+        AutoSaveToggleButton.Content = enabled ? "Disable" : "Enable";
+        AutoSaveToggleButton.Background = enabled
+            ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EF4444"))
+            : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4D7CFE"));
+    }
+
+    private void AutoSaveInterval_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (AutoSaveIntervalTextBox == null) return;
+
+        if (int.TryParse(AutoSaveIntervalTextBox.Text.Trim(), out int minutes) && minutes >= 1 && minutes <= 60)
+        {
+            SettingsService.Instance.Current.AutoSaveIntervalMinutes = minutes;
+        }
     }
 
     private async void ImportConfig_Click(object sender, RoutedEventArgs e)

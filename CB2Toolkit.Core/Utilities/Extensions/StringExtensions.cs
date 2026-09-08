@@ -30,6 +30,24 @@ public static class StringExtensions
         return val.Trim().Trim('"');
     }
 
+    /// <summary>
+    /// Removes quotes and similar characters users often paste around file paths
+    /// ("C:\path\compiler.exe", 'C:\path', `C:\path`) and trims whitespace.
+    /// </summary>
+    public static string SanitizePath(this string val)
+    {
+        if (string.IsNullOrWhiteSpace(val)) return string.Empty;
+
+        var sb = new StringBuilder(val.Length);
+        foreach (char c in val)
+        {
+            if (c is '"' or '\'' or '`') continue;
+            sb.Append(c);
+        }
+
+        return sb.ToString().Trim();
+    }
+
     public static string[] SplitArgs(this string argsLine)
     {
         if (string.IsNullOrWhiteSpace(argsLine)) return Array.Empty<string>();

@@ -325,7 +325,7 @@
                       CornerRadius="0"/>
     </WindowChrome.WindowChrome>
     
-    <Grid>
+    <Grid AllowDrop="True" PreviewDragOver="Root_DragEnter" DragLeave="Root_DragLeave" PreviewDrop="Root_Drop">
         <Border BorderBrush="#1F1F24" BorderThickness="1" SnapsToDevicePixels="True">
             <Border.Style>
                 <Style TargetType="Border">
@@ -475,6 +475,24 @@
                     </Grid>
                 </Grid>
             </Grid>
+        </Border>
+
+        <Border x:Name="DropOverlay" Panel.ZIndex="1000" Background="#CC121214" Visibility="Collapsed"
+                IsHitTestVisible="False">
+            <Border x:Name="DropOverlayCard" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Margin="0,0,0,40" Background="#1E1E22" BorderBrush="#4D7CFE" BorderThickness="2"
+                    CornerRadius="12" Padding="36,26"
+                    RenderOptions.CachingHint="Cache" RenderOptions.BitmapScalingMode="LowQuality">
+                <StackPanel>
+                    <Path Data="M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"
+                          Fill="#F3F4F6" Width="36" Height="28" Stretch="Uniform"
+                          HorizontalAlignment="Center" Margin="0,0,0,12" SnapsToDevicePixels="True" />
+                    <TextBlock Text="Drop files or folders" Foreground="#F3F4F6" FontSize="16"
+                               FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    <TextBlock Text="AngelScript (.as), UI files and project folders"
+                               Foreground="#9CA3AF" FontSize="12" HorizontalAlignment="Center" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
         </Border>
     </Grid>
 </Window>

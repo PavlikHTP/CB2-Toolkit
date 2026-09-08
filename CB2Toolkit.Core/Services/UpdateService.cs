@@ -40,7 +40,7 @@ public class UpdateService
                 if (latestRelease.TryGetProperty("tag_name", out JsonElement tagProperty))
                 {
                     string tagName = tagProperty.GetString() ?? string.Empty;
-                    
+              
 
                     string cleanTag = tagName.TrimStart('v', 'V'); 
                     string[] parts = cleanTag.Split('-');

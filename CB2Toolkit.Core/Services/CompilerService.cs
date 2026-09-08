@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using CB2Toolkit.Core.Models;
+using CB2Toolkit.Core.Utilities.Extensions;
 
 namespace CB2Toolkit.Core.Services;
 
@@ -17,7 +18,7 @@ public class CompilerService
 
     public async Task<List<LogEntry>> RunCompilerAsync(string? code, string? filePath, string outputName)
     {
-        string rawCompilerPath = SettingsService.Instance.Current.AngelScriptCompilerPath;
+        string rawCompilerPath = SettingsService.Instance.Current.AngelScriptCompilerPath.SanitizePath();
 
         if (string.IsNullOrWhiteSpace(rawCompilerPath) || !File.Exists(rawCompilerPath))
         {

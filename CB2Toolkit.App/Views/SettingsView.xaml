@@ -403,6 +403,94 @@
 
                 <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,24" />
 
+                <TextBlock Text="SPELL CHECK" FontSize="12" FontWeight="Bold" Foreground="#4D7CFE"
+                           Margin="0,0,0,16" />
+
+                <TextBlock Text="Detects typos in comments, strings and code identifiers. Word dictionaries live in the Dictionaries folder - add your own words via custom.txt." 
+                           Foreground="#9CA3AF" FontSize="12.5" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Enable Spell Check" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center"/>
+                    <Button x:Name="SpellCheckToggleButton" Grid.Column="1" Click="SpellCheckToggle_Click"
+                            Padding="18,8" Cursor="Hand" FontSize="13" FontWeight="SemiBold">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="BtnBorder" Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,24">
+                    <Button Content="Open Dictionaries Folder" Style="{StaticResource SecondaryButtonStyle}"
+                            Click="OpenDictionaries_Click" Margin="0,0,12,0" />
+                    <Button x:Name="ReloadDictionariesButton" Content="Reload Dictionaries"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Click="ReloadDictionaries_Click" />
+                </StackPanel>
+
+                <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,24" />
+
+                <TextBlock Text="AUTO-SAVE" FontSize="12" FontWeight="Bold" Foreground="#4D7CFE"
+                           Margin="0,0,0,16" />
+
+                <TextBlock Text="Automatically saves the current file after a period of inactivity."
+                           Foreground="#9CA3AF" FontSize="12.5" TextWrapping="Wrap" Margin="0,0,0,16" />
+
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Enable Auto-Save" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center"/>
+                    <Button x:Name="AutoSaveToggleButton" Grid.Column="1" Click="AutoSaveToggle_Click"
+                            Padding="18,8" Cursor="Hand" FontSize="13" FontWeight="SemiBold">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="BtnBorder" Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+
+                <Grid Margin="0,0,0,24">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Save after (minutes of inactivity)" Foreground="#9CA3AF"
+                               FontSize="13" VerticalAlignment="Center"/>
+                    <TextBox x:Name="AutoSaveIntervalTextBox" Grid.Column="1" Width="80" TextAlignment="Center"
+                             MaxLength="2" Style="{StaticResource ModernTextBox}"
+                             TextChanged="AutoSaveInterval_TextChanged" />
+                </Grid>
+
+                <Rectangle Height="1" Fill="#1E1E22" Margin="0,8,0,24" />
+
                 <TextBlock Text="EDITOR &amp; ENVIRONMENT" FontSize="12" FontWeight="Bold" Foreground="#4D7CFE"
                            Margin="0,0,0,16" />
 
@@ -643,6 +731,18 @@
                                VerticalAlignment="Center" />
                     <Button x:Name="GoToDefinitionHotkeyButton" Grid.Column="1"
                             Style="{StaticResource HotkeyButtonStyle}" Content="F12" Click="HotkeyButton_Click"
+                            KeyDown="HotkeyButton_KeyDown" PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
+                </Grid>
+
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Auto-Complete" Foreground="#9CA3AF" FontSize="13"
+                               VerticalAlignment="Center" />
+                    <Button x:Name="AutoCompleteHotkeyButton" Grid.Column="1"
+                            Style="{StaticResource HotkeyButtonStyle}" Content="Ctrl+Space" Click="HotkeyButton_Click"
                             KeyDown="HotkeyButton_KeyDown" PreviewMouseDown="HotkeyButton_PreviewMouseDown" />
                 </Grid>
 

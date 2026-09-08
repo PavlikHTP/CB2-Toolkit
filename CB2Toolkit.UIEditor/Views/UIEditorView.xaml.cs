@@ -16,6 +16,7 @@ using CB2Toolkit.Core.Models;
 using CB2Toolkit.Core.Models.Enums;
 using CB2Toolkit.Core.Models.Settings;
 using CB2Toolkit.Core.Services;
+using CB2Toolkit.Core.Utilities.Extensions;
 using Microsoft.Win32;
 using Fonts = CB2Toolkit.Core.Models.Enums.Fonts;
 
@@ -65,6 +66,9 @@ public partial class UIEditorView : LifecycleUserControl
         _historyManager = new UIServiceManager(Elements);
 
         CollectionViewSource.GetDefaultView(Elements).GroupDescriptions.Add(new PropertyGroupDescription("GroupId"));
+
+        PathTextBoxHelper.Attach(CompilePathInput);
+        PathTextBoxHelper.Attach(BackgroundPathInput);
     }
 
     protected override Task OnViewLoadedAsync()
@@ -100,7 +104,7 @@ public partial class UIEditorView : LifecycleUserControl
 
     private void SaveCompilePathSetting()
     {
-        SettingsService.Instance.Current.UIEditorCompilePath = CompilePathInput.Text;
+        SettingsService.Instance.Current.UIEditorCompilePath = CompilePathInput.Text.SanitizePath();
         FontService.Instance.Initialize(CompilePathInput.Text);
         _ = SettingsService.Instance.SaveAsync();
     }
@@ -121,7 +125,7 @@ public partial class UIEditorView : LifecycleUserControl
 
     private void SaveBackgroundPathSetting()
     {
-        SettingsService.Instance.Current.UIEditorBackgroundPath = BackgroundPathInput.Text;
+        SettingsService.Instance.Current.UIEditorBackgroundPath = BackgroundPathInput.Text.SanitizePath();
         _ = SettingsService.Instance.SaveAsync();
     }
 
@@ -1061,12 +1065,12 @@ public partial class UIEditorView : LifecycleUserControl
             if (direction.Contains("W"))
             {
                 double normDeltaX = deltaPx / cw;
-                newGroupX = Math.Clamp(_initialGroupBounds.X + normDeltaX, 0.0, initialRight - 0.001);
+                newGroupX = Math.Clamp(_initialGroupBounds.X + normDeltaX, 0.0, Math.Max(0.0, initialRight - 0.001));
                 newGroupWidth = Math.Max(0.001, initialRight - newGroupX);
             }
             else if (direction.Contains("E"))
             {
-                double maxW = 1.0 - _initialGroupBounds.X;
+                double maxW = Math.Max(0.001, 1.0 - _initialGroupBounds.X);
                 double normDeltaW = deltaPx / cw;
                 newGroupWidth = Math.Clamp(_initialGroupBounds.Width + normDeltaW, 0.001, maxW);
             }
@@ -1074,12 +1078,12 @@ public partial class UIEditorView : LifecycleUserControl
             if (direction.Contains("N"))
             {
                 double normDeltaY = deltaPy / ch;
-                newGroupY = Math.Clamp(_initialGroupBounds.Y + normDeltaY, 0.0, initialBottom - 0.001);
+                newGroupY = Math.Clamp(_initialGroupBounds.Y + normDeltaY, 0.0, Math.Max(0.0, initialBottom - 0.001));
                 newGroupHeight = Math.Max(0.001, initialBottom - newGroupY);
             }
             else if (direction.Contains("S"))
             {
-                double maxH = 1.0 - _initialGroupBounds.Y;
+                double maxH = Math.Max(0.001, 1.0 - _initialGroupBounds.Y);
                 double normDeltaH = deltaPy / ch;
                 newGroupHeight = Math.Clamp(_initialGroupBounds.Height + normDeltaH, 0.001, maxH);
             }
@@ -1630,8 +1634,10 @@ public partial class UIEditorView : LifecycleUserControl
                 _historyManager.SaveState();
                 var clone = _historyManager.CloneElement(selectedElement);
                 clone.Name = $"{selectedElement.Name}_copy";
-                clone.X = Math.Round(Math.Clamp(selectedElement.X + 0.02, 0.0, 1.0 - selectedElement.Width), 3);
-                clone.Y = Math.Round(Math.Clamp(selectedElement.Y + 0.02, 0.0, 1.0 - selectedElement.Height), 3);
+                double maxCloneX = Math.Max(0.0, 1.0 - selectedElement.Width);
+                double maxCloneY = Math.Max(0.0, 1.0 - selectedElement.Height);
+                clone.X = Math.Round(Math.Clamp(selectedElement.X + 0.02, 0.0, maxCloneX), 3);
+                clone.Y = Math.Round(Math.Clamp(selectedElement.Y + 0.02, 0.0, maxCloneY), 3);
                 Elements.Add(clone);
                 ElementsList.SelectedItem = clone;
                 Dispatcher.InvokeAsync(UpdateSelectionBox);

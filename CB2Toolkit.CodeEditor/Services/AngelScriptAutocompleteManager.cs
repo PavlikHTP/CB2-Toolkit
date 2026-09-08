@@ -996,6 +996,38 @@ public class AngelScriptAutocompleteManager : IDisposable
         CloseSignatureHelp();
     }
 
+    public void ShowCompletionManually()
+    {
+        if (_completionWindow != null) return;
+
+        int offset = Math.Min(_editor.CaretOffset, _editor.Document.TextLength);
+        if (IsInStringOrComment(offset)) return;
+
+        int start = offset;
+        while (start > 0)
+        {
+            char ch = _editor.Document.GetCharAt(start - 1);
+            if (char.IsLetterOrDigit(ch) || ch == '_')
+                start--;
+            else
+                break;
+        }
+
+        string currentWord = _editor.Document.GetText(start, offset - start);
+
+        if (start > 0 && _editor.Document.GetCharAt(start - 1) == '.')
+        {
+            ShowMethodsForContext(start - 1, currentWord);
+            return;
+        }
+
+        var suggestions = GetContextualSuggestions(currentWord, start);
+        if (suggestions.Count == 0) return;
+
+        _currentContextMethods = null;
+        OpenCompletionWindow(start, offset, suggestions);
+    }
+
     public void Dispose()
     {
         _debounceCts?.Cancel();

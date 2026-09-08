@@ -29,5 +29,8 @@ public class AppSettings
     public int UIEditorRefWidth { get; set; } = 1920;
     public int UIEditorRefHeight { get; set; } = 1080;
     public bool PluginsEnabled { get; set; }
-    public HotkeySettings Hotkeys { get; } = new();
+    public bool SpellCheckEnabled { get; set; } = true;
+    public bool AutoSaveEnabled { get; set; }
+    public int AutoSaveIntervalMinutes { get; set; } = 5;
+    public HotkeySettings Hotkeys { get; set; } = new();
 }

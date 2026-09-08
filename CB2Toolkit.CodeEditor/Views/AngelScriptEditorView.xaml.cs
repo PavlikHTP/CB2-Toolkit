@@ -1,13 +1,17 @@
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Net.Http;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using System.Xml;
 using CB2Toolkit.CodeEditor.Extensions;
+using CB2Toolkit.CodeEditor.Models;
 using CB2Toolkit.CodeEditor.Models.Enums;
 using CB2Toolkit.CodeEditor.Renderers;
 using CB2Toolkit.CodeEditor.Services;
@@ -19,9 +23,12 @@ using CB2Toolkit.Core.Models.Enums;
 using CB2Toolkit.Core.Models.Settings;
 using CB2Toolkit.Core.Services;
 using CB2Toolkit.Core.Utilities;
+using CB2Toolkit.Core.Utilities.Extensions;
+using ValidationResult = CB2Toolkit.Core.Models.ValidationResult;
 using ICSharpCode.AvalonEdit.Folding;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
+using ICSharpCode.AvalonEdit.Indentation;
 using ICSharpCode.AvalonEdit.Rendering;
 using Microsoft.Win32;
 
@@ -46,13 +53,28 @@ public partial class AngelScriptEditorView : LifecycleUserControl
     private readonly Stack<string> _forwardHistory = new();
     private bool _isNavigatingHistory;
     private readonly HashSet<string> _approvedWarningFiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ObservableCollection<EditorTab> _openTabs = new();
+    private readonly DispatcherTimer _indexRebuildTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _autoSaveTimer = new() { Interval = TimeSpan.FromSeconds(15) };
+    private DateTime _lastEditTime = DateTime.MinValue;
+
+    private static readonly Regex ContextWordRegex = new("[A-Za-zА-Яа-яЁё0-9_'-]+", RegexOptions.Compiled);
+    private string? _contextMenuWord;
 
     private FoldingManager? _foldingManager;
     private TextHistoryManager _historyManager;
     private BraceFoldingStrategy? _foldingStrategy;
     private DispatcherTimer _foldingTimer;
     private ErrorColorizer _errorColorizer;
+    private AngelScriptSyntaxColorizer _syntaxColorizer;
     private DispatcherTimer _validationTimer;
+    private MouseHoverLogic _errorHoverLogic;
+    private ToolTip _errorToolTip;
+    private bool _isErrorListOpen;
+    private static readonly Brush NoErrorsBrush = CreateFrozenBrush("#10B981");
+    private static readonly Brush HasErrorsBrush = CreateFrozenBrush("#EF4444");
+    private ValidationResult? _validation;
+    private Dictionary<string, List<SymbolDeclaration>> _symbolsByName = new();
     private AngelScriptAutocompleteManager _autocompleteManager;
     private readonly TerminalExecutionService _terminalService = new();
 
@@ -60,8 +82,52 @@ public partial class AngelScriptEditorView : LifecycleUserControl
     {
         InitializeComponent();
 
+        TabsListBox.ItemsSource = _openTabs;
         CodeEditor.TextChanged += CodeEditor_TextChanged;
         CodeEditor.PreviewMouseWheel += CodeEditor_PreviewMouseWheel;
+        CodeEditor.PreviewMouseMove += CodeEditor_PreviewMouseMove;
+        CodeEditor.PreviewKeyUp += CodeEditor_PreviewKeyUp;
+
+        PathTextBoxHelper.Attach(CompilePathInput);
+    }
+
+    private bool _ctrlClickCursorSet;
+
+    private void CodeEditor_PreviewKeyUp(object sender, KeyEventArgs e)
+    {
+        if (e.Key is Key.LeftCtrl or Key.RightCtrl && _ctrlClickCursorSet)
+        {
+            _ctrlClickCursorSet = false;
+            CodeEditor.TextArea.Cursor = null;
+        }
+    }
+
+    private void CodeEditor_PreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == 0)
+        {
+            if (_ctrlClickCursorSet)
+            {
+                _ctrlClickCursorSet = false;
+                CodeEditor.TextArea.Cursor = null;
+            }
+
+            return;
+        }
+
+        bool canGo = false;
+        var textPos = CodeEditor.GetPositionFromPoint(e.GetPosition(CodeEditor));
+        if (textPos != null)
+        {
+            int offset = CodeEditor.Document.GetOffset(textPos.Value.Location);
+            canGo = TryGetGoToTarget(offset, out _, out _);
+        }
+
+        if (canGo != _ctrlClickCursorSet)
+        {
+            CodeEditor.TextArea.Cursor = canGo ? Cursors.Hand : null;
+            _ctrlClickCursorSet = canGo;
+        }
     }
 
     protected override async Task OnViewLoadedAsync()
@@ -83,6 +149,19 @@ public partial class AngelScriptEditorView : LifecycleUserControl
 
         LoggerService.Instance.OnLogAdded += LoggerService_OnLogAdded;
         LoggerService.Instance.OnLogCleared += LoggerService_OnLogCleared;
+
+        _indexRebuildTimer.Tick += (_, _) =>
+        {
+            _indexRebuildTimer.Stop();
+            string? projectDir = ProjectService.Instance.CurrentFolderPath;
+            if (!string.IsNullOrEmpty(projectDir))
+            {
+                _ = Task.Run(() => ProjectSymbolIndexService.Instance.Rebuild(projectDir));
+            }
+        };
+
+        SpellCheckDictionaryService.Instance.EnsureDictionariesExist();
+        _ = Task.Run(() => SpellCheckDictionaryService.Instance.Load());
 
         _historyManager = new TextHistoryManager(CodeEditor);
         var settings = SettingsService.Instance.Current;
@@ -119,7 +198,11 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         LoggerService.Instance.OnLogCleared -= LoggerService_OnLogCleared;
     }
 
-    private void ProjectService_TreeStructureChanged() => Dispatcher.InvokeAsync(LoadProjectTree);
+    private void ProjectService_TreeStructureChanged() => Dispatcher.InvokeAsync(() =>
+    {
+        LoadProjectTree();
+        ScheduleIndexRebuild();
+    });
     private void ProjectService_FileChangedExternally(string path) => Dispatcher.InvokeAsync(() => OnFileChanged(path));
 
     private void ProjectService_ActiveFileDeletedExternally(string path) =>
@@ -152,7 +235,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
             FileTreeStateService.Instance.SaveExpansionState(currentNodes, false);
         }
 
-        SettingsService.Instance.Current.CustomAngelScriptCompilePath = CompilePathInput.Text;
+        SettingsService.Instance.Current.CustomAngelScriptCompilePath = CompilePathInput.Text.SanitizePath();
         _ = SettingsService.Instance.SaveAsync();
     }
 
@@ -170,10 +253,14 @@ public partial class AngelScriptEditorView : LifecycleUserControl
             try
             {
                 string targetPath = ProjectService.Instance.RenameNode(node, newName);
-                if (!node.IsDirectory && _currentFilePath == node.FullPath)
+                _historyManager.RenameFile(node.FullPath, targetPath);
+                if (!node.IsDirectory)
                 {
-                    _currentFilePath = targetPath;
-                    CurrentFileNameText.Text = newName;
+                    RenameTab(node.FullPath, targetPath);
+                    if (_currentFilePath == node.FullPath)
+                    {
+                        _currentFilePath = targetPath;
+                    }
                 }
             }
             catch (Exception ex)
@@ -266,30 +353,79 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         _isNavigatingHistory = false;
     }
 
-    private void GoToDefinition()
+    private bool GoToDefinition(int offset)
     {
-        if (string.IsNullOrEmpty(_currentFilePath)) return;
+        if (!TryGetGoToTarget(offset, out int target, out string includePath)) return false;
 
-        int offset = CodeEditor.CaretOffset;
+        if (includePath.Length > 0)
+        {
+            OpenFile(includePath);
+            return true;
+        }
+
+        JumpToOffset(target);
+        return true;
+    }
+
+    private bool TryGetGoToTarget(int offset, out int targetOffset, out string includeFullPath)
+    {
+        targetOffset = -1;
+        includeFullPath = string.Empty;
+        if (string.IsNullOrEmpty(_currentFilePath)) return false;
+
         var line = CodeEditor.Document.GetLineByOffset(offset);
         string lineText = CodeEditor.Document.GetText(line.Offset, line.Length);
 
-        if (!RegexPatterns.IncludeLine.IsMatch(lineText)) return;
-
-        char openDelim = lineText[lineText.IndexOfAny(['"', '<'])];
-        char closeDelim = openDelim == '"' ? '"' : '>';
-        int start = lineText.IndexOf(openDelim);
-        int end = lineText.LastIndexOf(closeDelim);
-        if (start < 0 || end <= start) return;
-
-        string includePath = lineText.Substring(start + 1, end - start - 1);
-        string baseDir = Path.GetDirectoryName(_currentFilePath)!;
-        string fullPath = Path.GetFullPath(Path.Combine(baseDir, includePath));
-
-        if (File.Exists(fullPath))
+        if (RegexPatterns.IncludeLine.IsMatch(lineText))
         {
-            OpenFile(fullPath);
+            int relStart = lineText.IndexOfAny(['"', '<']);
+            if (relStart >= 0)
+            {
+                char openDelim = lineText[relStart];
+                char closeDelim = openDelim == '"' ? '"' : '>';
+                int relEnd = lineText.LastIndexOf(closeDelim);
+                if (relStart >= 0 && relEnd > relStart &&
+                    offset >= line.Offset + relStart && offset <= line.Offset + relEnd)
+                {
+                    string includePath = lineText.Substring(relStart + 1, relEnd - relStart - 1);
+                    string baseDir = Path.GetDirectoryName(_currentFilePath)!;
+                    string fullPath = Path.GetFullPath(Path.Combine(baseDir, includePath));
+
+                    if (File.Exists(fullPath))
+                    {
+                        includeFullPath = fullPath;
+                        return true;
+                    }
+                }
+            }
         }
+
+        string text = CodeEditor.Document.Text;
+        int wordStart = offset;
+        int wordEnd = offset;
+        while (wordStart > 0 && (char.IsLetterOrDigit(text[wordStart - 1]) || text[wordStart - 1] == '_')) wordStart--;
+        while (wordEnd < text.Length && (char.IsLetterOrDigit(text[wordEnd]) || text[wordEnd] == '_')) wordEnd++;
+        if (wordStart == wordEnd) return false;
+
+        string word = text.Substring(wordStart, wordEnd - wordStart);
+
+        if (_validation?.UsageToDeclaration.TryGetValue(wordStart, out int declOffset) == true)
+        {
+            targetOffset = declOffset;
+            return true;
+        }
+
+        if (_symbolsByName.TryGetValue(word, out var candidates))
+        {
+            var best = candidates.OrderBy(c => Math.Abs(c.Offset - wordStart)).FirstOrDefault();
+            if (best != null)
+            {
+                targetOffset = best.Offset;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void View_PreviewKeyDown(object sender, KeyEventArgs e) => HandleInputEvent(e);
@@ -298,6 +434,17 @@ public partial class AngelScriptEditorView : LifecycleUserControl
     protected void HandleInputEvent(RoutedEventArgs e)
     {
         var hotkeys = SettingsService.Instance.Current.Hotkeys;
+
+        if (e is MouseButtonEventArgs mouseArgs && mouseArgs.ChangedButton == MouseButton.Left &&
+            Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            var textPos = CodeEditor.GetPositionFromPoint(mouseArgs.GetPosition(CodeEditor));
+            if (textPos != null && GoToDefinition(CodeEditor.Document.GetOffset(textPos.Value.Location)))
+            {
+                e.Handled = true;
+                return;
+            }
+        }
 
         if (TryTrigger(e, hotkeys.HideSearchPanelKey, hotkeys.HideSearchPanelModifiers, HideSearchPanel,
                 () => SearchPanel.Visibility == Visibility.Visible)) return;
@@ -314,7 +461,10 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         if (TryTrigger(e, hotkeys.NavigateBackKey, hotkeys.NavigateBackModifiers, NavigateBack)) return;
         if (TryTrigger(e, hotkeys.NavigateForwardKey, hotkeys.NavigateForwardModifiers, NavigateForward)) return;
         if (TryTrigger(e, hotkeys.FormatKey, hotkeys.FormatModifiers, () => CodeEditor.FormatSelection())) return;
-        if (TryTrigger(e, hotkeys.GoToDefinitionKey, hotkeys.GoToDefinitionModifiers, GoToDefinition)) return;
+        if (TryTrigger(e, hotkeys.GoToDefinitionKey, hotkeys.GoToDefinitionModifiers,
+                () => GoToDefinition(CodeEditor.CaretOffset))) return;
+        if (TryTrigger(e, hotkeys.AutoCompleteKey, hotkeys.AutoCompleteModifiers,
+                () => _autocompleteManager.ShowCompletionManually())) return;
 
         if (TryTrigger(e, hotkeys.RedoKey, hotkeys.RedoModifiers, () =>
             {
@@ -450,6 +600,22 @@ public partial class AngelScriptEditorView : LifecycleUserControl
                 e.Handled = true;
             }
         };
+
+        _autoSaveTimer.Tick += AutoSaveTimer_Tick;
+        _autoSaveTimer.Start();
+    }
+
+    private void AutoSaveTimer_Tick(object? sender, EventArgs e)
+    {
+        var settings = SettingsService.Instance.Current;
+        if (!settings.AutoSaveEnabled) return;
+        if (!_isUnsaved) return;
+        if (string.IsNullOrEmpty(_currentFilePath)) return;
+        if (_lastEditTime == DateTime.MinValue) return;
+
+        if ((DateTime.UtcNow - _lastEditTime).TotalMinutes < settings.AutoSaveIntervalMinutes) return;
+
+        SaveCurrentFile();
     }
 
     private void RefreshRecentFoldersSubmenu()
@@ -659,6 +825,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
             if (newSize >= 8 && newSize <= 36)
             {
                 CodeEditor.FontSize = newSize;
+                UpdateFontSizeLabel();
                 SettingsService.Instance.Current.EditorFontSize = newSize;
                 if (!_isWheelSaving)
                 {
@@ -708,37 +875,364 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         _errorColorizer = new ErrorColorizer();
         CodeEditor.TextArea.TextView.LineTransformers.Add(_errorColorizer);
 
+        _syntaxColorizer = new AngelScriptSyntaxColorizer(CodeEditor.Document);
+        CodeEditor.TextArea.TextView.LineTransformers.Add(_syntaxColorizer);
+
         _validationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _validationTimer.Tick += (s, e) =>
         {
             _validationTimer.Stop();
             ValidateSyntax();
         };
+
+        CodeEditor.TextArea.IndentationStrategy = new AngelScriptIndentationStrategy();
+        CodeEditor.TextArea.Caret.PositionChanged += Caret_PositionChanged;
+
+        InitErrorHover();
+        UpdateCaretPosition();
+        UpdateErrorCount();
+        UpdateFileStats();
+    }
+
+    private void Caret_PositionChanged(object? sender, EventArgs e)
+    {
+        UpdateCaretPosition();
+    }
+
+    private void UpdateCaretPosition()
+    {
+        var caret = CodeEditor.TextArea.Caret;
+        CaretPositionText.Text = $"Ln {caret.Line}, Col {caret.Column}";
+    }
+
+    private void UpdateFileStats()
+    {
+        string text = CodeEditor.Document.Text;
+        bool hasCrlf = text.Contains("\r\n");
+        bool hasLf = text.Contains('\n');
+        string eol = hasCrlf ? "CRLF" : hasLf ? "LF" : "LF";
+        string size = text.Length < 1024 ? $"{text.Length} B" : $"{text.Length / 1024.0:0.0} KB";
+        FileInfoText.Text = $"{eol}  {CodeEditor.Document.LineCount} lines  {size}";
+        UpdateFontSizeLabel();
+    }
+
+    private void UpdateFontSizeLabel()
+    {
+        FontSizeText.Text = $"{CodeEditor.FontSize:0.#} pt";
+    }
+
+    private void UpdateErrorCount()
+    {
+        int errors = _errorColorizer.Errors.Count(e => e.Severity == DiagnosticSeverity.Error);
+        int warnings = _errorColorizer.Errors.Count(e => e.Severity == DiagnosticSeverity.Warning);
+
+        ErrorCountText.Foreground = errors == 0 ? NoErrorsBrush : HasErrorsBrush;
+        ErrorCountText.Text = errors == 0 ? "No errors" : $"{errors} error{(errors == 1 ? string.Empty : "s")}";
+
+        WarningsCountText.Visibility = warnings == 0 ? Visibility.Collapsed : Visibility.Visible;
+        if (warnings > 0)
+        {
+            WarningsCountText.Text = $"{warnings} warning{(warnings == 1 ? string.Empty : "s")}";
+        }
+    }
+
+    private static Brush CreateFrozenBrush(string hex)
+    {
+        var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+        brush.Freeze();
+        return brush;
+    }
+
+    private void InitErrorHover()
+    {
+        _errorHoverLogic = new MouseHoverLogic(CodeEditor.TextArea);
+        _errorHoverLogic.MouseHover += ErrorHover_MouseHover;
+        _errorHoverLogic.MouseHoverStopped += ErrorHover_MouseHoverStopped;
+
+        _errorToolTip = new ToolTip
+        {
+            Placement = PlacementMode.RelativePoint,
+            PlacementTarget = CodeEditor.TextArea,
+            Background = new SolidColorBrush(Color.FromRgb(0x16, 0x16, 0x1A)),
+            Foreground = new SolidColorBrush(Color.FromRgb(0xF3, 0xF4, 0xF6)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x2B, 0x2B, 0x30)),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(10, 6, 10, 6),
+            FontSize = 13,
+            MaxWidth = 420
+        };
+    }
+
+    private void ErrorHover_MouseHover(object? sender, MouseEventArgs e)
+    {
+        if (_isErrorListOpen) return;
+
+        var textView = CodeEditor.TextArea.TextView;
+        var position = textView.GetPositionFloor(e.GetPosition(textView) + textView.ScrollOffset);
+        if (position == null)
+        {
+            CloseErrorToolTip();
+            return;
+        }
+
+        int offset = CodeEditor.Document.GetOffset(position.Value.Location);
+        var hovered = _errorColorizer.Errors
+            .Where(err => offset >= err.Offset && offset < err.Offset + err.Length)
+            .ToList();
+
+        if (hovered.Count == 0)
+        {
+            ShowTypeHintOrClose(offset, e);
+            return;
+        }
+
+        if (hovered.Count == 1)
+        {
+            _errorToolTip.Content = FormatError(hovered[0]);
+            var point = e.GetPosition(CodeEditor.TextArea);
+            _errorToolTip.HorizontalOffset = point.X + 14;
+            _errorToolTip.VerticalOffset = point.Y + 20;
+            _errorToolTip.IsOpen = true;
+        }
+        else
+        {
+            CloseErrorToolTip();
+            ShowErrorListWindow(hovered);
+        }
+    }
+
+    private void ShowTypeHintOrClose(int offset, MouseEventArgs e)
+    {
+        var typeHints = _validation?.TypeHints;
+        if (typeHints == null || typeHints.Count == 0)
+        {
+            CloseErrorToolTip();
+            return;
+        }
+
+        int start = offset;
+        string text = CodeEditor.Document.Text;
+        while (start > 0 && (char.IsLetterOrDigit(text[start - 1]) || text[start - 1] == '_'))
+        {
+            start--;
+        }
+
+        if (typeHints.TryGetValue(start, out string? type))
+        {
+            _errorToolTip.Content = $"Type: {type}";
+            var point = e.GetPosition(CodeEditor.TextArea);
+            _errorToolTip.HorizontalOffset = point.X + 14;
+            _errorToolTip.VerticalOffset = point.Y + 20;
+            _errorToolTip.IsOpen = true;
+        }
+        else
+        {
+            CloseErrorToolTip();
+        }
+    }
+
+    private void ErrorHover_MouseHoverStopped(object? sender, MouseEventArgs e)
+    {
+        CloseErrorToolTip();
+    }
+
+    private void CloseErrorToolTip()
+    {
+        if (_errorToolTip != null) _errorToolTip.IsOpen = false;
+    }
+
+    private void ShowErrorListWindow(List<SyntaxError> errors, string title = "Errors")
+    {
+        _isErrorListOpen = true;
+        try
+        {
+            bool isWarning = errors.All(err => err.Severity == DiagnosticSeverity.Warning);
+
+            var owner = Window.GetWindow(this);
+            var window = new ErrorsListWindow(title,
+                errors.Select(err => new ErrorEntry(FormatError(err), err.Offset)).ToList(),
+                JumpToOffset,
+                isWarning);
+            if (owner != null) window.Owner = owner;
+            window.ShowDialog();
+        }
+        finally
+        {
+            _isErrorListOpen = false;
+        }
+    }
+
+    private void ErrorCountText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        var errors = _errorColorizer.Errors
+            .Where(err => err.Severity == DiagnosticSeverity.Error)
+            .ToList();
+
+        if (errors.Count == 0) return;
+        ShowErrorListWindow(errors, "Errors");
+    }
+
+    private void WarningsCountText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        var warnings = _errorColorizer.Errors
+            .Where(err => err.Severity == DiagnosticSeverity.Warning)
+            .ToList();
+
+        if (warnings.Count == 0) return;
+        ShowErrorListWindow(warnings, "Warnings");
+    }
+
+    private void JumpToOffset(int offset)
+    {
+        try
+        {
+            int target = Math.Min(offset, CodeEditor.Document.TextLength);
+            CodeEditor.TextArea.Caret.Offset = target;
+            CodeEditor.ScrollToLine(CodeEditor.Document.GetLineByOffset(target).LineNumber);
+            CodeEditor.TextArea.Focus();
+        }
+        catch
+        {
+        }
+    }
+
+    private string FormatError(SyntaxError error)
+    {
+        int line = 1;
+        try
+        {
+            line = CodeEditor.Document.GetLineByOffset(error.Offset).LineNumber;
+        }
+        catch
+        {
+        }
+
+        return $"Line {line}: {error.Message}";
     }
 
     private void ValidateSyntax()
     {
-        _errorColorizer.Errors.Clear();
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var validation = SyntaxValidationService.Instance.Analyze(CodeEditor.Document.Text, BuildSpellCheckContext());
+        stopwatch.Stop();
 
-        var linesData = new List<(string Text, int Offset)>();
-        foreach (var line in CodeEditor.Document.Lines)
+        _validation = validation;
+        _symbolsByName.Clear();
+        foreach (var symbol in validation.Symbols)
         {
-            linesData.Add((CodeEditor.Document.GetText(line), line.Offset));
+            if (!_symbolsByName.TryGetValue(symbol.Name, out var list))
+            {
+                list = new List<SymbolDeclaration>();
+                _symbolsByName[symbol.Name] = list;
+            }
+
+            list.Add(symbol);
         }
 
-        var serviceErrors = SyntaxValidationService.Instance.Validate(linesData);
-
-        foreach (var err in serviceErrors)
+        _errorColorizer.Errors.Clear();
+        foreach (var err in validation.Errors)
         {
             _errorColorizer.Errors.Add(new SyntaxError
             {
                 Offset = err.Offset,
                 Length = err.Length,
-                Message = err.Message
+                Message = err.Message,
+                Severity = err.Severity
             });
         }
 
+        ValidationTimeText.Text = $"{stopwatch.ElapsedMilliseconds} ms · {validation.Errors.Count} issue{(validation.Errors.Count == 1 ? string.Empty : "s")}";
+        UpdateErrorCount();
         CodeEditor.TextArea.TextView.Redraw();
+    }
+
+    private SpellCheckContext? BuildSpellCheckContext()
+    {
+        var settings = SettingsService.Instance.Current;
+        if (!settings.SpellCheckEnabled) return null;
+
+        var dict = SpellCheckDictionaryService.Instance;
+        if (!dict.IsReady) dict.Load();
+
+        var index = ProjectSymbolIndexService.Instance;
+
+        return new SpellCheckContext
+        {
+            CheckText = dict.Enabled,
+            CheckCode = index.HasIndex,
+            IsWordKnown = dict.IsKnown,
+            WordSuggestion = dict.FindSuggestion,
+            IsCodeKnown = name => index.IsKnown(name),
+            CodeSuggestion = index.FindSuggestion
+        };
+    }
+
+    private void CodeEditor_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    {
+        _contextMenuWord = null;
+        AddWordMenuItem.Visibility = Visibility.Collapsed;
+
+        var textPos = CodeEditor.GetPositionFromPoint(Mouse.GetPosition(CodeEditor));
+        if (textPos == null) return;
+
+        int offset = CodeEditor.Document.GetOffset(textPos.Value.Location);
+        if (offset < 0 || offset > CodeEditor.Document.TextLength) return;
+
+        string text = CodeEditor.Document.Text;
+        Match? wordMatch = null;
+        foreach (Match m in ContextWordRegex.Matches(text))
+        {
+            if (m.Index > offset) break;
+            if (m.Index <= offset && offset < m.Index + m.Length)
+            {
+                wordMatch = m;
+                break;
+            }
+        }
+
+        if (wordMatch == null) return;
+
+        string word = wordMatch.Value;
+        if (word.Length < 3) return;
+
+        var dict = SpellCheckDictionaryService.Instance;
+        if (!dict.IsReady) dict.Load();
+
+        if (dict.IsKnown(word)) return;
+        if (_symbolsByName.ContainsKey(word)) return;
+        if (ProjectSymbolIndexService.Instance.IsKnown(word)) return;
+
+        _contextMenuWord = word;
+        AddWordMenuItem.Visibility = Visibility.Visible;
+        AddWordMenuItem.Header = $"Add \"{word}\" to dictionary";
+    }
+
+    private void AddWordMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (_contextMenuWord == null) return;
+
+        bool added = SpellCheckDictionaryService.Instance.AddCustomWord(_contextMenuWord);
+        _contextMenuWord = null;
+
+        if (!added) return;
+
+        _validationTimer.Stop();
+        _validationTimer.Start();
+    }
+
+    private void RefreshIndexFile(string filePath)
+    {
+        var index = ProjectSymbolIndexService.Instance;
+        if (!index.HasIndex) return;
+
+        index.RemoveFile(filePath);
+        index.AddFile(filePath);
+    }
+
+    private void ScheduleIndexRebuild()
+    {
+        _indexRebuildTimer.Stop();
+        _indexRebuildTimer.Start();
     }
 
     private async Task LoadAngelScriptHighlightingAsync()
@@ -1010,12 +1504,13 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         }
     }
     
-    private async Task OpenProject(string path)
+    public async Task OpenProject(string path)
     {
         SaveCurrentTreeState();
 
         ProjectService.Instance.OpenProject(path);
         LoadProjectTree();
+        _ = Task.Run(() => ProjectSymbolIndexService.Instance.Rebuild(path));
         var settings = SettingsService.Instance.Current;
         settings.RecentAngelScriptFolders.Remove(path);
         settings.RecentAngelScriptFolders.Insert(0, path);
@@ -1033,15 +1528,21 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         if (string.IsNullOrEmpty(_currentFilePath) ||
             !_currentFilePath.Equals(fullPath, StringComparison.OrdinalIgnoreCase)) return;
 
+        RefreshIndexFile(fullPath);
         if (!_isUnsaved)
         {
             IsSuppressingTextEvents = true;
+            _historyManager.IsSuspended = true;
             try
             {
                 CodeEditor.Document.Text = File.ReadAllText(_currentFilePath);
             }
             catch
             {
+            }
+            finally
+            {
+                _historyManager.IsSuspended = false;
             }
 
             IsSuppressingTextEvents = false;
@@ -1058,6 +1559,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
             if (result.Result == ModernBoxResultType.Yes)
             {
                 IsSuppressingTextEvents = true;
+                _historyManager.IsSuspended = true;
                 try
                 {
                     CodeEditor.Document.Text = File.ReadAllText(_currentFilePath);
@@ -1068,6 +1570,10 @@ public partial class AngelScriptEditorView : LifecycleUserControl
                 catch
                 {
                 }
+                finally
+                {
+                    _historyManager.IsSuspended = false;
+                }
 
                 IsSuppressingTextEvents = false;
             }
@@ -1076,21 +1582,47 @@ public partial class AngelScriptEditorView : LifecycleUserControl
 
     private void OnFileDeleted(string fullPath)
     {
+        _historyManager.DeleteFile(fullPath);
+        ProjectSymbolIndexService.Instance.RemoveFile(fullPath);
+
+        var deletedTab = _openTabs.FirstOrDefault(t => t.FilePath.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
+        if (deletedTab != null)
+        {
+            _openTabs.Remove(deletedTab);
+            UpdateTabStrip();
+        }
+
         if (!string.IsNullOrEmpty(_currentFilePath) &&
             _currentFilePath.Equals(fullPath, StringComparison.OrdinalIgnoreCase))
         {
             _autocompleteManager?.ClearWindow();
+
+            if (_openTabs.Count > 0)
+            {
+                OpenFile(_openTabs[^1].FilePath);
+                return;
+            }
 
             TempFileService.Instance.ClearTemp(_currentFilePath);
             if (_autocompleteManager != null) _autocompleteManager.CurrentFilePath = null;
             _currentFilePath = null;
             _isUnsaved = false;
 
-            _foldingManager?.Clear();
-            CodeEditor.Document.Text = string.Empty;
+            _historyManager.ResetCurrent();
 
-            CurrentFileNameText.Text = string.Empty;
+            _foldingManager?.Clear();
+            _historyManager.IsSuspended = true;
+            try
+            {
+                CodeEditor.Document.Text = string.Empty;
+            }
+            finally
+            {
+                _historyManager.IsSuspended = false;
+            }
+
             SetUnsavedStatus(false);
+            UpdateTabStrip();
         }
     }
 
@@ -1107,9 +1639,11 @@ public partial class AngelScriptEditorView : LifecycleUserControl
             }
 
             _currentFilePath = fullPath;
-            CurrentFileNameText.Text = Path.GetFileName(fullPath);
         }
 
+        RenameTab(oldFullPath, fullPath);
+        _historyManager.RenameFile(oldFullPath, fullPath);
+        ProjectSymbolIndexService.Instance.RenameFile(oldFullPath, fullPath);
         DiscordRpcService.UpdateToEditing(Path.GetFileName(fullPath));
     }
 
@@ -1238,6 +1772,7 @@ public partial class AngelScriptEditorView : LifecycleUserControl
     {
         if (IsSuppressingTextEvents || string.IsNullOrEmpty(_currentFilePath)) return;
 
+        _lastEditTime = DateTime.UtcNow;
         _isUnsaved = true;
         SetUnsavedStatus(true);
         TempFileService.Instance.SaveTemp(_currentFilePath, CodeEditor.Text);
@@ -1247,6 +1782,8 @@ public partial class AngelScriptEditorView : LifecycleUserControl
 
         _validationTimer.Stop();
         _validationTimer.Start();
+
+        UpdateFileStats();
     }
 
     private void FileMenuButton_Click(object sender, RoutedEventArgs e)
@@ -1259,11 +1796,20 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         }
     }
 
-    private void OpenFile(string filePath)
+    public void OpenFile(string filePath)
     {
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
 
         _autocompleteManager?.ClearWindow();
+
+        var tab = _openTabs.FirstOrDefault(t => t.FilePath.Equals(filePath, StringComparison.OrdinalIgnoreCase));
+        if (tab == null)
+        {
+            tab = new EditorTab(filePath);
+            _openTabs.Add(tab);
+        }
+
+        UpdateTabStrip();
 
         if (!_isNavigatingHistory && !string.IsNullOrEmpty(_currentFilePath) && _currentFilePath != filePath)
         {
@@ -1278,28 +1824,115 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         _autocompleteManager.CurrentFilePath = _currentFilePath;
         _foldingManager?.Clear();
 
-        string tempText = TempFileService.Instance.GetTemp(_currentFilePath);
-        if (tempText != null)
+        _historyManager.IsSuspended = true;
+        try
         {
-            CodeEditor.Document.Text = tempText;
-            _isUnsaved = true;
-            SetUnsavedStatus(true);
+            string tempText = TempFileService.Instance.GetTemp(_currentFilePath);
+            if (tempText != null)
+            {
+                CodeEditor.Document.Text = tempText;
+                _isUnsaved = true;
+                SetUnsavedStatus(true);
+            }
+            else
+            {
+                CodeEditor.Document.Text = File.ReadAllText(_currentFilePath);
+                _isUnsaved = false;
+                SetUnsavedStatus(false);
+            }
         }
-        else
+        finally
         {
-            CodeEditor.Document.Text = File.ReadAllText(_currentFilePath);
-            _isUnsaved = false;
-            SetUnsavedStatus(false);
+            _historyManager.IsSuspended = false;
         }
 
         CodeEditor.Document.UndoStack.SizeLimit = 0;
 
         _foldingStrategy?.UpdateFoldings(_foldingManager, CodeEditor.Document);
-        CurrentFileNameText.Text = Path.GetFileName(_currentFilePath);
         IsSuppressingTextEvents = false;
         DiscordRpcService.UpdateToEditing(Path.GetFileName(_currentFilePath));
 
+        TabsListBox.SelectedItem = tab;
+        UpdateTabStrip();
+
+        UpdateCaretPosition();
+        UpdateFileStats();
+        ValidateSyntax();
+
         FileTreeStateService.Instance.SaveLastOpenedFile(filePath);
+    }
+
+    private void TabsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.AddedItems.Count > 0 && e.AddedItems[0] is EditorTab tab &&
+            !string.Equals(_currentFilePath, tab.FilePath, StringComparison.OrdinalIgnoreCase))
+        {
+            OpenFile(tab.FilePath);
+        }
+    }
+
+    private void TabClose_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.DataContext is EditorTab tab)
+        {
+            e.Handled = true;
+            CloseTab(tab);
+        }
+    }
+
+    private void CloseTab(EditorTab tab)
+    {
+        bool wasCurrent = !string.IsNullOrEmpty(_currentFilePath) &&
+                          string.Equals(_currentFilePath, tab.FilePath, StringComparison.OrdinalIgnoreCase);
+
+        int index = _openTabs.IndexOf(tab);
+        _openTabs.Remove(tab);
+        UpdateTabStrip();
+
+        if (!wasCurrent) return;
+
+        if (_openTabs.Count > 0)
+        {
+            OpenFile(_openTabs[Math.Min(index, _openTabs.Count - 1)].FilePath);
+            return;
+        }
+
+        _historyManager.ResetCurrent();
+        IsSuppressingTextEvents = true;
+        _historyManager.IsSuspended = true;
+        try
+        {
+            CodeEditor.Document.Text = string.Empty;
+        }
+        finally
+        {
+            _historyManager.IsSuspended = false;
+        }
+        IsSuppressingTextEvents = false;
+
+        _currentFilePath = null;
+        _isUnsaved = false;
+        SetUnsavedStatus(false);
+        UpdateFileStats();
+        ValidateSyntax();
+        UpdateTabStrip();
+    }
+
+    private void UpdateTabStrip()
+    {
+        bool hasTabs = _openTabs.Count > 0;
+        TabsListBox.Visibility = hasTabs ? Visibility.Visible : Visibility.Collapsed;
+        EmptyFilePlaceholder.Visibility = hasTabs ? Visibility.Collapsed : Visibility.Visible;
+        if (!hasTabs && string.IsNullOrEmpty(CurrentFileNameText.Text))
+        {
+            CurrentFileNameText.Text = "No file open";
+        }
+    }
+
+    private void RenameTab(string oldPath, string newPath)
+    {
+        var tab = _openTabs.FirstOrDefault(t => t.FilePath.Equals(oldPath, StringComparison.OrdinalIgnoreCase));
+        if (tab != null) tab.FilePath = newPath;
     }
 
     private void SaveFile_Click(object sender, RoutedEventArgs e)
@@ -1319,6 +1952,8 @@ public partial class AngelScriptEditorView : LifecycleUserControl
             _isUnsaved = false;
             SetUnsavedStatus(false);
             TempFileService.Instance.ClearTemp(_currentFilePath);
+            RefreshIndexFile(_currentFilePath);
+            ValidateSyntax();
         }
         catch (Exception ex)
         {
@@ -1335,6 +1970,12 @@ public partial class AngelScriptEditorView : LifecycleUserControl
         if (UnsavedDot != null)
         {
             UnsavedDot.Visibility = unsaved ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        if (!string.IsNullOrEmpty(_currentFilePath))
+        {
+            var tab = _openTabs.FirstOrDefault(t => t.FilePath.Equals(_currentFilePath, StringComparison.OrdinalIgnoreCase));
+            if (tab != null) tab.IsUnsaved = unsaved;
         }
 
         if (string.IsNullOrEmpty(_currentFilePath) || FileTree.Items.Count == 0) return;

@@ -7,8 +7,11 @@
         ShowInTaskbar="False">
 
     <Window.Resources>
+        <SolidColorBrush x:Key="AccentBrush" Color="#4D7CFE"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="#3B66E0"/>
+
         <Style x:Key="PrimaryBtn" TargetType="Button">
-            <Setter Property="Background" Value="#4D7CFE"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -26,7 +29,7 @@
             </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#3B66E0"/>
+                    <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -49,7 +52,7 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,8"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="CaretBrush" Value="#4D7CFE"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>

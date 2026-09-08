@@ -13,7 +13,8 @@ public static class AngelScriptSyntax
     <Color name='Function' foreground='#DCDCAA' />
     <Color name='ClassType' foreground='#4EC9B0' />
     <Color name='Field' foreground='#9CDCFE' />
-    <Color name='ObjectHandle' foreground='#C586C0' fontWeight='bold' /> 
+    <Color name='ObjectHandle' foreground='#C586C0' fontWeight='bold' />
+    <Color name='Operator' foreground='#C586C0' />
     <RuleSet>
         <Span color='Comment' begin='//' />
         <Span color='Comment' multiline='true' begin='/\*' end='\*/' />
@@ -59,6 +60,7 @@ public static class AngelScriptSyntax
         </Keywords>
         
         <Rule color='ObjectHandle'>@</Rule>
+        <Rule color='Operator'>[+\-*/%&amp;|^!~&lt;&gt;=?:]+</Rule>
         <Rule color='Directive'>\#\w+\b</Rule>
         <Rule color='ClassType'>\[\s*\]</Rule>
         <Rule color='Number'>\b0[xX][0-9a-fA-F]+\b|\b0[bB][01]+\b|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?[fF]?\b</Rule>

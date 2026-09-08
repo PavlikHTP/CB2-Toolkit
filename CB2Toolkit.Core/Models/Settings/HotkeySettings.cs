@@ -55,4 +55,7 @@ public class HotkeySettings
 
     public string GoToDefinitionKey { get; set; } = "F12";
     public string GoToDefinitionModifiers { get; set; } = "None";
+
+    public string AutoCompleteKey { get; set; } = "Space";
+    public string AutoCompleteModifiers { get; set; } = "Control";
 }

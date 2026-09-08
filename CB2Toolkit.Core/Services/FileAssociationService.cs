@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
+namespace CB2Toolkit.Core.Services;
+
 public static class FileAssociationService
 {
     [DllImport("shell32.dll", CharSet = CharSet.Auto, SetLastError = true)]

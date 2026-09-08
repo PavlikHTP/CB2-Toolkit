@@ -10,23 +10,27 @@ namespace CB2Toolkit.CodeEditor.Views;
 public partial class ModernMessageBox : Window
 {
     private static readonly Geometry InfoGeometry = Geometry.Parse("M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10,10-4.48,10-10S17.52,2,12,2z M10,17l-5,-5,1.41-1.41L10,14.17l7.59-7.59L19,8,10,17z");
+    private static readonly Geometry WarningGeometry = Geometry.Parse("M1,21h22L12,2L1,21z M13,18h-2v-2h2V18z M13,14h-2V9h2V14z");
     private static readonly Geometry ErrorGeometry = Geometry.Parse("M12,2C6.47,2,2,6.47,2,12s4.47,10,10,10,10-4.47,10-10S17.53,2,12,2z M17,15.59,15.59,17,12,13.41,8.41,17,7,15.59,10.59,12,7,8.41,8.41,7,12,10.59,15.59,7,17,8.41,13.41,12,17,15.59z");
     private static readonly Geometry QuestionGeometry = Geometry.Parse("M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10,10-4.48,10-10S17.52,2,12,2z M12,18c-.55,0-1-.45-1-1s.45-1,1-1,1,.45,1,1-.45,1-1,1zm1-4.33c0,.39-.24.71-.61.85-.25.1-.39.38-.39.65v.83c0,.55-.45,1-1,1s-1-.45-1-1v-1.34c0-.85.52-1.62,1.31-1.92.31-.12.51-.4.51-.73,0-.45-.36-.81-.81-.81s-.81.36-.81.81c0,.55-.45,1-1,1s-1-.45-1-1c0-1.55,1.26-2.81,2.81-2.81s2.81,1.26,2.81,2.81c0,.92-.49,1.72-1.22,2.18z");
     private static readonly Geometry InputGeometry = Geometry.Parse("M3,17.25V21h3.75L17.81,9.94l-3.75-3.75L3,17.25z M20.71,7.04c.39-.39.39-1.02,0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41,0l-1.83,1.83 3.75,3.75 1.83-1.83z");
 
-    private static readonly Brush InfoBrush = CreateFrozenBrush("#4D7CFE");
     private static readonly Brush ErrorBrush = CreateFrozenBrush("#EF4444");
     private static readonly Brush ErrorBorderBrush = CreateFrozenBrush("#451A1A");
+    private static readonly Brush WarningBrush = CreateFrozenBrush("#F59E0B");
+    private static readonly Brush WarningBorderBrush = CreateFrozenBrush("#452A1A");
     private static readonly Brush QuestionBrush = CreateFrozenBrush("#10B981");
     private static readonly Brush InputBrush = CreateFrozenBrush("#A855F7");
 
+    private Brush _accentBrush = CreateFrozenBrush("#4D7CFE");
     private readonly ModernBoxResult _result = new();
     private readonly ModernBoxType _type;
 
-    public ModernMessageBox(string message, string title, ModernBoxType type, string defaultInput = "")
+    public ModernMessageBox(string message, string title, ModernBoxType type, string defaultInput = "", string accentColor = "#4D7CFE")
     {
         InitializeComponent();
         
+        ApplyAccent(accentColor);
         _type = type;
         MessageTextBlock.Text = message;
         TitleTextBlock.Text = title;
@@ -48,7 +52,7 @@ public partial class ModernMessageBox : Window
         else if (e.Key == Key.Escape)
         {
             e.Handled = true;
-            if (_type == ModernBoxType.Information || _type == ModernBoxType.Error) BtnOk_Click(this, e);
+            if (_type == ModernBoxType.Information || _type == ModernBoxType.Warning || _type == ModernBoxType.Error) BtnOk_Click(this, e);
             else if (_type == ModernBoxType.Question) BtnNo_Click(this, e);
             else BtnCancel_Click(this, e);
         }
@@ -60,7 +64,14 @@ public partial class ModernMessageBox : Window
         {
             case ModernBoxType.Information:
                 StatusIcon.Data = InfoGeometry;
-                StatusIcon.Fill = InfoBrush;
+                StatusIcon.Fill = _accentBrush;
+                BtnOk.Visibility = Visibility.Visible;
+                break;
+
+            case ModernBoxType.Warning:
+                StatusIcon.Data = WarningGeometry;
+                StatusIcon.Fill = WarningBrush;
+                WindowBorder.BorderBrush = WarningBorderBrush;
                 BtnOk.Visibility = Visibility.Visible;
                 break;
 
@@ -134,9 +145,26 @@ public partial class ModernMessageBox : Window
         return brush;
     }
 
-    public static ModernBoxResult Show(Window owner, string message, string title, ModernBoxType type = ModernBoxType.Information, string defaultInput = "")
+    private void ApplyAccent(string hex)
     {
-        var msgBox = new ModernMessageBox(message, title, type, defaultInput)
+        _accentBrush = CreateFrozenBrush(hex);
+        Resources["AccentBrush"] = _accentBrush;
+        Resources["AccentHoverBrush"] = CreateFrozenBrush(Darken(hex, 0.8));
+    }
+
+    private static string Darken(string hex, double factor)
+    {
+        var color = (Color)ColorConverter.ConvertFromString(hex);
+        return Color.FromRgb(
+            (byte)(color.R * factor),
+            (byte)(color.G * factor),
+            (byte)(color.B * factor)
+        ).ToString();
+    }
+
+    public static ModernBoxResult Show(Window owner, string message, string title, ModernBoxType type = ModernBoxType.Information, string defaultInput = "", string accentColor = "#4D7CFE")
+    {
+        var msgBox = new ModernMessageBox(message, title, type, defaultInput, accentColor)
         {
             Owner = owner
         };

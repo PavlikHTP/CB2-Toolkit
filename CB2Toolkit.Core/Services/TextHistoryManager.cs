@@ -105,4 +105,10 @@ public class TextHistoryManager
     {
         _filesHistory.Remove(path);
     }
+
+    public void ResetCurrent()
+    {
+        _customUndoStack = new Stack<TextChangeHistory>();
+        _customRedoStack = new Stack<TextChangeHistory>();
+    }
 }

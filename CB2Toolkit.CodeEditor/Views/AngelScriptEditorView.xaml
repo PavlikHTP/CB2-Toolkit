@@ -539,36 +539,147 @@
                     </Grid.RowDefinitions>
 
                     <Border Grid.Row="0" Background="#1A1A1E" BorderBrush="#232329" BorderThickness="1,1,1,0"
-                            CornerRadius="6,6,0,0" Padding="14,8">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Name="CurrentFileNameText" Text="No file open" Foreground="#E2E2E9"
-                                       FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Cursor="Hand"
-                                       PreviewMouseLeftButtonDown="CurrentFileNameText_PreviewMouseLeftButtonDown">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Foreground" Value="#4D7CFE" />
-                                            </Trigger>
-                                        </Style.Triggers>
+                            CornerRadius="6,6,0,0" Padding="6,4">
+                        <DockPanel VerticalAlignment="Center">
+                            <StackPanel x:Name="EmptyFilePlaceholder" Orientation="Horizontal" VerticalAlignment="Center"
+                                        DockPanel.Dock="Left" Margin="8,0,8,0">
+                                <TextBlock Name="CurrentFileNameText" Text="No file open" Foreground="#6B7280"
+                                           FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold" Cursor="Hand"
+                                           PreviewMouseLeftButtonDown="CurrentFileNameText_PreviewMouseLeftButtonDown">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Foreground" Value="#4D7CFE" />
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <Ellipse Name="UnsavedDot" Width="7" Height="7" Fill="#F3F4F6" Margin="8,1,0,0"
+                                         Visibility="Collapsed" />
+                            </StackPanel>
+
+                            <ListBox x:Name="TabsListBox" Background="Transparent" BorderThickness="0"
+                                     SelectionChanged="TabsListBox_SelectionChanged"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                     FocusVisualStyle="{x:Null}">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" />
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Background" Value="Transparent" />
+                                        <Setter Property="BorderThickness" Value="0" />
+                                        <Setter Property="Padding" Value="0" />
+                                        <Setter Property="Margin" Value="0" />
+                                        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <ContentPresenter />
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
                                     </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                            <Ellipse Name="UnsavedDot" Width="7" Height="7" Fill="#F3F4F6" Margin="8,1,0,0"
-                                     Visibility="Collapsed" />
-                        </StackPanel>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="TabBorder" CornerRadius="5" Padding="10,5" Margin="0,0,4,0"
+                                                Cursor="Hand">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="Transparent" />
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Background" Value="#232329" />
+                                                        </Trigger>
+                                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type ListBoxItem}}}"
+                                                                     Value="True">
+                                                            <Setter Property="Background" Value="#2D2D35" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Name}" Foreground="#E2E2E9"
+                                                           FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold"
+                                                           VerticalAlignment="Center" />
+                                                <Ellipse Width="6" Height="6" Fill="#F3F4F6" Margin="6,0,0,0"
+                                                         VerticalAlignment="Center" Visibility="Collapsed">
+                                                    <Ellipse.Style>
+                                                        <Style TargetType="Ellipse">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsUnsaved}" Value="True">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Ellipse.Style>
+                                                </Ellipse>
+                                                <Button Content="✕" Margin="6,-1,-4,0" Padding="4,0" FontSize="10"
+                                                        BorderThickness="0" Background="Transparent" Cursor="Hand"
+                                                        FocusVisualStyle="{x:Null}" VerticalAlignment="Center"
+                                                        Click="TabClose_Click" ToolTip="Close tab">
+                                                    <Button.Style>
+                                                        <Style TargetType="Button">
+                                                            <Setter Property="Foreground" Value="#9CA3AF" />
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="Button">
+                                                                        <Border Background="{TemplateBinding Background}"
+                                                                                CornerRadius="3">
+                                                                            <ContentPresenter HorizontalAlignment="Center"
+                                                                                              VerticalAlignment="Center" />
+                                                                        </Border>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Style.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Foreground" Value="#F3F4F6" />
+                                                                    <Setter Property="Background" Value="#3F3F46" />
+                                                                </Trigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Button.Style>
+                                                </Button>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
                     </Border>
 
                    <Grid Grid.Row="1">
-    <Border CornerRadius="0,0,6,6" BorderBrush="#232329" BorderThickness="1,0,1,1" ClipToBounds="True">
+    <Grid.RowDefinitions>
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <Border Grid.Row="0" BorderBrush="#232329" BorderThickness="1,0,1,0" ClipToBounds="True">
         <avalonEdit:TextEditor Name="CodeEditor" Background="#16161A" Foreground="#E2E2E9"
                                FontFamily="Consolas" FontSize="14" ShowLineNumbers="True"
-                               LineNumbersForeground="#4B5563" Padding="12" />
+                               LineNumbersForeground="#4B5563" Padding="12"
+                               ContextMenuOpening="CodeEditor_ContextMenuOpening">
+            <avalonEdit:TextEditor.ContextMenu>
+                <ContextMenu>
+                    <MenuItem x:Name="AddWordMenuItem" Header="Add to dictionary"
+                              Click="AddWordMenuItem_Click" />
+                </ContextMenu>
+            </avalonEdit:TextEditor.ContextMenu>
+        </avalonEdit:TextEditor>
     </Border>
 
-    <Canvas Name="SearchMarkersCanvas" Width="14" HorizontalAlignment="Right" IsHitTestVisible="False" Margin="0,2,2,16" />
+    <Canvas Grid.Row="0" Name="SearchMarkersCanvas" Width="14" HorizontalAlignment="Right" IsHitTestVisible="False" Margin="0,2,2,16" />
 
-    <Border x:Name="SearchPanel" Background="#1A1A1E" BorderBrush="#232329" BorderThickness="1"
+    <Border Grid.Row="0" x:Name="SearchPanel" Background="#1A1A1E" BorderBrush="#232329" BorderThickness="1"
             HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,12,0" Padding="8,4"
             CornerRadius="6" Visibility="Collapsed" Panel.ZIndex="10">
         <Border.Resources>
@@ -626,6 +737,31 @@
             <Button Content="✕" Style="{StaticResource ActionIconButtonStyle}" Width="24"
                     Height="26" Click="CloseSearch_Click" />
         </StackPanel>
+    </Border>
+
+    <Border Grid.Row="1" Background="#131317" BorderBrush="#232329" BorderThickness="1,0,1,1"
+            CornerRadius="0,0,6,6" Padding="12,4">
+        <DockPanel>
+            <TextBlock x:Name="FileInfoText" Text="LF  0 lines  0 B" Foreground="#6B7280"
+                       FontFamily="Segoe UI" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center"
+                       Margin="0,0,16,0" />
+            <TextBlock x:Name="ValidationTimeText" Text="—" Foreground="#6B7280"
+                       FontFamily="Segoe UI" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center"
+                       Margin="0,0,16,0" />
+            <TextBlock x:Name="FontSizeText" Text="14 pt" Foreground="#6B7280"
+                       FontFamily="Segoe UI" FontSize="11" DockPanel.Dock="Left" VerticalAlignment="Center"
+                       Margin="0,0,16,0" />
+            <TextBlock x:Name="CaretPositionText" Text="Ln 1, Col 1" Foreground="#9CA3AF"
+                       FontFamily="Segoe UI" FontSize="11" DockPanel.Dock="Right" VerticalAlignment="Center" />
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock x:Name="ErrorCountText" Text="No errors" Foreground="#10B981"
+                           FontFamily="Segoe UI" FontSize="11" VerticalAlignment="Center"
+                           Cursor="Hand" MouseLeftButtonDown="ErrorCountText_MouseLeftButtonDown" />
+                <TextBlock x:Name="WarningsCountText" Visibility="Collapsed" Foreground="#F59E0B"
+                           FontFamily="Segoe UI" FontSize="11" VerticalAlignment="Center" Margin="12,0,0,0"
+                           Cursor="Hand" MouseLeftButtonDown="WarningsCountText_MouseLeftButtonDown" />
+            </StackPanel>
+        </DockPanel>
     </Border>
 </Grid>
                 </Grid>
