@@ -517,7 +517,7 @@ public partial class SettingsView : UserControl
 
                 if (success)
                 {
-                    ModernMessageBox.Show(parentWindow, "Configuration successfully exported!", "CB2Toolkit");
+                    ModernMessageBox.Show(parentWindow, "Configuration successfully exported!", AppMetadata.Title);
                 }
                 else
                 {
