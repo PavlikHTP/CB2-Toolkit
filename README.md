@@ -31,4 +31,4 @@ If the application crashes or encounters a critical error, it automatically gene
 
 ## 📄 License
 
-This project is distributed under the **Apache-2.0 License**. For more details, see the `LICENSE` file.
+This project is distributed under the **GNU General Public License v3.0**. For more details, see the `LICENSE` file.
