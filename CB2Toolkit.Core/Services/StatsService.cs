@@ -25,9 +25,11 @@ public class StatsService
             string os = Uri.EscapeDataString(Environment.OSVersion.ToString());
 
             using var response = await _httpClient.GetAsync($"{BaseUrl}/ping?id={id}&v={v}&os={os}");
+            if (!response.IsSuccessStatusCode) LoggerService.Instance.LogDebug($"Stats ping failed: {(int)response.StatusCode}");
         }
-        catch
+        catch (Exception ex)
         {
+            LoggerService.Instance.LogDebug($"Stats ping error: {ex.Message}");
         }
     }
 
@@ -38,8 +40,9 @@ public class StatsService
             var result = await _httpClient.GetFromJsonAsync<StatsResponse>($"{BaseUrl}/stats");
             return result?.TotalUsers ?? 0;
         }
-        catch
+        catch (Exception ex)
         {
+            LoggerService.Instance.LogDebug($"Stats fetch error: {ex.Message}");
             return -1;
         }
     }

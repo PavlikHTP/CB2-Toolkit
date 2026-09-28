@@ -6,12 +6,6 @@ public static class RegexPatterns
 {
     public static readonly Regex LeadingWhitespace = new(@"^\s*", RegexOptions.Compiled);
 
-    public static readonly Regex ArgumentsGroup = new(@"\(([^)]+)\)", RegexOptions.Compiled);
-
-    public static readonly Regex MissingComma3Words = new(@"\b\w+\s+\w+\s+\w+\b", RegexOptions.Compiled);
-
-    public static readonly Regex MissingComma4Words = new(@"\b\w+\s+\w+(?!\s*,\s*)\s+\w+\s+\w+\b", RegexOptions.Compiled);
-
     public static readonly Regex LogFilePath = new(@"^\[(.*?)\]", RegexOptions.Compiled);
 
     public static readonly Regex LogLineCol = new(@"\((\d+)(?:,\s*(\d+))?\)", RegexOptions.Compiled);
@@ -30,10 +24,6 @@ public static class RegexPatterns
 
     public static readonly Regex IncludeIncomplete = new(@"^\s*#include\s*""$", RegexOptions.Compiled);
     public static readonly Regex IncludeLine = new(@"^\s*#\s*include\s*[""<]", RegexOptions.Compiled);
-
-    public static readonly Regex UiElementCreate = new(@"^(?<name>\w+)\[idx\]\s*=\s*gfx\.Create(?<type>\w+)\((?<args>.*)\);", RegexOptions.Compiled);
-
-    public static readonly Regex UiPropertySet = new(@"^(?<name>\w+)\[idx\]\.(?<method>SetColor|SetOpacity|SetScale|SetCallback)\((?<args>.*)\);", RegexOptions.Compiled);
 
     public static Regex VariableTypeDeclaration(string varName)
     {

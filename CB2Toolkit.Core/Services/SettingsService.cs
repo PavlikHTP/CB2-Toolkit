@@ -29,9 +29,11 @@ public class SettingsService
             using FileStream openStream = File.OpenRead(SettingsFilePath);
             var imported = await JsonSerializer.DeserializeAsync<AppSettings>(openStream);
             Current = imported ?? throw new InvalidDataException();
+            LoggerService.Instance.LogDebug($"Settings loaded from {SettingsFilePath}");
         }
-        catch
+        catch (Exception ex)
         {
+            LoggerService.Instance.LogError($"Settings load failed, defaults applied: {ex.Message}");
             Current = new AppSettings();
             await SaveInternalAsync();
         }
@@ -68,11 +70,13 @@ public class SettingsService
             {
                 Current = imported;
                 await SaveInternalAsync(); 
+                LoggerService.Instance.LogDebug($"Settings imported from {filePath}");
                 return true;
             }
         }
-        catch
+        catch (Exception ex)
         {
+            LoggerService.Instance.LogError($"Settings import failed for {filePath}: {ex.Message}");
         }
         finally
         {
@@ -88,10 +92,12 @@ public class SettingsService
         {
             using FileStream createStream = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true);
             await JsonSerializer.SerializeAsync(createStream, Current, new JsonSerializerOptions { WriteIndented = true });
+            LoggerService.Instance.LogDebug($"Settings exported to {targetPath}");
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            LoggerService.Instance.LogError($"Settings export failed for {targetPath}: {ex.Message}");
             return false;
         }
         finally
@@ -111,10 +117,12 @@ public class SettingsService
 
             using FileStream createStream = new FileStream(SettingsFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true);
             await JsonSerializer.SerializeAsync(createStream, Current, new JsonSerializerOptions { WriteIndented = true });
+            LoggerService.Instance.LogDebug($"Settings saved to {SettingsFilePath}");
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            LoggerService.Instance.LogError($"Settings save failed: {ex.Message}");
             return false;
         }
     }

@@ -9,6 +9,7 @@ public class TerminalExecutionService
 
     public async Task ExecuteAsync(string command, string workingDirectory)
     {
+        LoggerService.Instance.LogDebug($"Terminal run: {command}");
         try
         {
             using var process = new Process();
@@ -38,9 +39,11 @@ public class TerminalExecutionService
             process.BeginErrorReadLine();
 
             await process.WaitForExitAsync();
+            LoggerService.Instance.LogDebug($"Terminal exit: {process.ExitCode}: {command}");
         }
         catch (Exception ex)
         {
+            LoggerService.Instance.LogError($"Terminal failed: {command}: {ex.Message}");
             ErrorReceived?.Invoke($"[Terminal Error] {ex.Message}");
         }
     }

@@ -25,6 +25,9 @@ public class CbpakService
 
     public async Task PackDirectoryAsync(string directory, string destName, string baseUrl, string serverFolder)
     {
+        LoggerService.Instance.LogDebug($"Pack started: {directory} -> {destName}");
+        try
+        {
         string[] allFiles = Directory.GetFiles(directory, "*.*", SearchOption.AllDirectories);
         int repeatCount = 1;
 
@@ -120,16 +123,27 @@ public class CbpakService
         string jsonString = JsonSerializer.Serialize(jsonObject, options);
         string outputPath = Path.Combine(directory, "addons.jsonc");
         await File.WriteAllTextAsync(outputPath, jsonString);
+        LoggerService.Instance.LogInfo($"Pack finished: {fileEntries.Count} archives, {allFiles.Length} files scanned");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Pack failed for {directory}: {ex.Message}");
+            throw;
+        }
     }
 
     public async Task UnpackFileAsync(string cbpakPath, string destFolder)
     {
+        LoggerService.Instance.LogDebug($"Unpack started: {cbpakPath}");
+        try
+        {
         using FileStream fs = new FileStream(cbpakPath, FileMode.Open, FileAccess.Read);
         using BinaryReader reader = new BinaryReader(fs);
 
         int version = reader.ReadInt32();
         if (version != PAK_VERSION)
         {
+            LoggerService.Instance.LogError($"Unpack failed: bad version {version}, expected {PAK_VERSION}");
             reader.Close();
             return;
         }
@@ -172,5 +186,12 @@ public class CbpakService
         }
 
         reader.Close();
+        LoggerService.Instance.LogInfo($"Unpack finished: {cbpakPath} -> {destFolder}");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Unpack failed for {cbpakPath}: {ex.Message}");
+            throw;
+        }
     }
 }

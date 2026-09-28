@@ -265,7 +265,7 @@
             <Setter Property="Padding" Value="14,10"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontFamily" Value="Consolas"/>
-            <Setter Property="CaretBrush" Value="Transparent"/>
+            <Setter Property="CaretBrush" Value="#4D7CFE"/>
             <Setter Property="SelectionBrush" Value="#334D7CFE"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Template">

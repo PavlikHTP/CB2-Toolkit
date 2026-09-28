@@ -47,9 +47,11 @@ public class CrashReportingService
             }
 
             File.WriteAllText(filePath, logText);
+            LoggerService.Instance.LogError($"Crash saved: {filePath}: {ex.Message}");
         }
-        catch
+        catch (Exception crashEx)
         {
+            LoggerService.Instance.LogError($"Crash save failed: {crashEx.Message}");
         }
     }
 }

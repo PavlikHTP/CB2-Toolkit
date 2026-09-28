@@ -39,6 +39,7 @@ public class VoiceService
     {
         if (_isCurrentCallActive) return;
 
+        LoggerService.Instance.LogDebug($"Voice call started: {targetIp}:{targetPort}");
         try
         {
             _targetEndPoint = new IPEndPoint(IPAddress.Parse(targetIp), targetPort);
@@ -79,8 +80,9 @@ public class VoiceService
             _isCurrentCallActive = true;
             Task.Run(ReceiveAudioLoop);
         }
-        catch
+        catch (Exception ex)
         {
+            LoggerService.Instance.LogError($"Voice call failed: {ex.Message}");
             StopCall();
             throw;
         }
@@ -89,6 +91,7 @@ public class VoiceService
     public void StopCall()
     {
         _isCurrentCallActive = false;
+        LoggerService.Instance.LogDebug($"Voice call stopped");
 
         try { _waveIn?.StopRecording(); } catch { }
         try { _waveIn?.Dispose(); } catch { }
@@ -149,7 +152,7 @@ public class VoiceService
         {
             _udpClient.Send(_compressedBuffer, encodedBytes);
         }
-        catch { }
+        catch (Exception ex) { LoggerService.Instance.LogDebug($"Voice send failed: {ex.Message}"); }
     }
 
     private async Task ReceiveAudioLoop()
@@ -179,8 +182,9 @@ public class VoiceService
                     _waveProvider.AddSamples(_rawBytesBuffer, 0, bytesToProvider);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                LoggerService.Instance.LogDebug($"Voice receive stopped: {ex.Message}");
                 break;
             }
         }

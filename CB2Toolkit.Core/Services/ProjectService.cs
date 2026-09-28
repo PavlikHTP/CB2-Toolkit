@@ -19,8 +19,13 @@ public class ProjectService : IDisposable
     
     public void OpenProject(string path)
     {
-        if (string.IsNullOrEmpty(path) || !Directory.Exists(path)) return;
+        if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+        {
+            LoggerService.Instance.LogWarn($"Open project failed, bad path: {path}");
+            return;
+        }
         
+        LoggerService.Instance.LogDebug($"Project opened: {path}");
         CurrentFolderPath = path;
         InitFileWatcher(path);
     }
@@ -98,36 +103,74 @@ public class ProjectService : IDisposable
     
     public void CreateFile(string targetDir, string name)
     {
+        try
+        {
         string path = Path.Combine(targetDir, name);
         if (!File.Exists(path)) File.WriteAllText(path, string.Empty);
+        LoggerService.Instance.LogDebug($"File created: {path}");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Create file failed: {name}: {ex.Message}");
+            throw;
+        }
     }
 
     public void CreateDirectory(string targetDir, string name)
     {
+        try
+        {
         string path = Path.Combine(targetDir, name);
         if (!Directory.Exists(path)) Directory.CreateDirectory(path);
+        LoggerService.Instance.LogDebug($"Directory created: {path}");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Create directory failed: {name}: {ex.Message}");
+            throw;
+        }
     }
 
     public string RenameNode(FileNode node, string newName)
     {
+        try
+        {
         string? parentDir = Path.GetDirectoryName(node.FullPath) 
             ?? throw new InvalidOperationException("Parent directory not found");
         
         string targetPath = Path.Combine(parentDir, newName);
         
         Directory.Move(node.FullPath, targetPath);
+        LoggerService.Instance.LogDebug($"Renamed: {node.FullPath} -> {targetPath}");
         
         return targetPath;
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Rename failed: {node.FullPath}: {ex.Message}");
+            throw;
+        }
     }
 
     public void DeleteNode(FileNode node)
     {
+        try
+        {
         if (node.IsDirectory) Directory.Delete(node.FullPath, true);
         else File.Delete(node.FullPath);
+        LoggerService.Instance.LogDebug($"Deleted: {node.FullPath}");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Delete failed: {node.FullPath}: {ex.Message}");
+            throw;
+        }
     }
 
     public void DuplicateNode(FileNode node)
     {
+        try
+        {
         string? parentDir = Path.GetDirectoryName(node.FullPath) ?? throw new InvalidOperationException();
         string targetPath;
 
@@ -148,15 +191,31 @@ public class ProjectService : IDisposable
             while (File.Exists(targetPath)) targetPath = Path.Combine(parentDir, $"{fileNameWithoutExt}_copy_{counter++}{extension}");
             File.Copy(node.FullPath, targetPath);
         }
+        LoggerService.Instance.LogDebug($"Duplicated: {node.FullPath} -> {targetPath}");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Duplicate failed: {node.FullPath}: {ex.Message}");
+            throw;
+        }
     }
 
     public void MoveNode(string sourcePath, string targetDir, string nodeKey, bool isDirectory)
     {
+        try
+        {
         string targetPath = Path.Combine(targetDir, nodeKey);
         if (sourcePath == targetPath) return;
 
         if (isDirectory) Directory.Move(sourcePath, targetPath);
         else File.Move(sourcePath, targetPath);
+        LoggerService.Instance.LogDebug($"Moved: {sourcePath} -> {targetPath}");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Move failed: {sourcePath}: {ex.Message}");
+            throw;
+        }
     }
 
     public void ArchiveNode(FileNode node)
@@ -170,6 +229,12 @@ public class ProjectService : IDisposable
         {
             SuspendWatcher();
             CompressToZip(node, archivePath);
+            LoggerService.Instance.LogInfo($"Archived: {node.FullPath} -> {archivePath}");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Archive failed: {node.FullPath}: {ex.Message}");
+            throw;
         }
         finally
         {

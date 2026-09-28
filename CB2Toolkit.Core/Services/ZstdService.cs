@@ -37,18 +37,31 @@ public class ZstdService
     {
         if (data == null || data.Length == 0) return Array.Empty<byte>();
 
+        try
+        {
         IntPtr compressedPtr = zstd_compress(data, (nuint)data.Length, compressionLevel, out nuint outLen);
-        if (compressedPtr == IntPtr.Zero) return null;
+        if (compressedPtr == IntPtr.Zero)
+        {
+            LoggerService.Instance.LogError($"Zstd compress failed, size {data.Length}");
+            return null;
+        }
 
         try
         {
             byte[] result = new byte[(long)outLen];
             Marshal.Copy(compressedPtr, result, 0, (int)outLen);
+            LoggerService.Instance.LogDebug($"Zstd compress: {data.Length} -> {result.Length}");
             return result;
         }
         finally
         {
             zstd_free_buffer(compressedPtr, outLen);
+        }
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Zstd compress error: {ex.Message}");
+            return null;
         }
     }
 
@@ -56,28 +69,47 @@ public class ZstdService
     {
         if (compressedData == null || compressedData.Length == 0) return Array.Empty<byte>();
 
+        try
+        {
         IntPtr decompressedPtr = zstd_decompress_safe(compressedData, (nuint)compressedData.Length, out nuint outLen);
-        if (decompressedPtr == IntPtr.Zero) return null;
+        if (decompressedPtr == IntPtr.Zero)
+        {
+            LoggerService.Instance.LogError($"Zstd decompress failed, size {compressedData.Length}");
+            return null;
+        }
 
         try
         {
             byte[] result = new byte[(long)outLen];
             Marshal.Copy(decompressedPtr, result, 0, (int)outLen);
+            LoggerService.Instance.LogDebug($"Zstd decompress: {compressedData.Length} -> {result.Length}");
             return result;
         }
         finally
         {
             zstd_free_buffer(decompressedPtr, outLen);
         }
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Zstd decompress error: {ex.Message}");
+            return null;
+        }
     }
 
-    public Task<int> CompressFileAsync(string sourcePath, string destinationPath, int compressionLevel = 3)
+    public async Task<int> CompressFileAsync(string sourcePath, string destinationPath, int compressionLevel = 3)
     {
-        return Task.Run(() => zstd_compress_file(sourcePath, destinationPath, compressionLevel));
+        LoggerService.Instance.LogDebug($"Zstd compress file: {sourcePath}");
+        int code = await Task.Run(() => zstd_compress_file(sourcePath, destinationPath, compressionLevel));
+        if (code != 0) LoggerService.Instance.LogError($"Zstd compress file failed: {sourcePath} code {code}");
+        return code;
     }
 
-    public Task<int> DecompressFileAsync(string sourceArchivePath, string destinationFilePath)
+    public async Task<int> DecompressFileAsync(string sourceArchivePath, string destinationFilePath)
     {
-        return Task.Run(() => zstd_decompress_file_safe(sourceArchivePath, destinationFilePath));
+        LoggerService.Instance.LogDebug($"Zstd decompress file: {sourceArchivePath}");
+        int code = await Task.Run(() => zstd_decompress_file_safe(sourceArchivePath, destinationFilePath));
+        if (code != 0) LoggerService.Instance.LogError($"Zstd decompress file failed: {sourceArchivePath} code {code}");
+        return code;
     }
 }

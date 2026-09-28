@@ -43,6 +43,7 @@ public class FontService
 
     public void Initialize(string baseDirectory = null)
     {
+        LoggerService.Instance.LogDebug($"Font init started");
         _cache.Clear();
         _loaded.Clear();
         
@@ -53,6 +54,7 @@ public class FontService
         {
             TryLoadFontsFromDirectory(baseDirectory);
         }
+        LoggerService.Instance.LogDebug($"Font init finished, loaded: {_loaded.Count}");
     }
 
     private void TryLoadFontsFromResources()
@@ -90,7 +92,7 @@ public class FontService
                     stream.CopyTo(ms);
                     fontResources[fileName] = ms.ToArray();
                 }
-                catch { }
+                catch (Exception ex) { LoggerService.Instance.LogError($"Font resource failed: {fileName}: {ex.Message}"); }
             }
 
             if (fontResources.Count == 0) continue;
@@ -131,7 +133,7 @@ public class FontService
                     if (!_loaded.ContainsKey(fileNameKey))
                         _loaded[fileNameKey] = family;
                 }
-                catch { }
+                catch (Exception ex) { LoggerService.Instance.LogError($"Font load failed: {fileName}: {ex.Message}"); }
             }
         }
     }

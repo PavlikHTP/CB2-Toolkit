@@ -18,6 +18,7 @@ public class CompilerService
 
     public async Task<List<LogEntry>> RunCompilerAsync(string? code, string? filePath, string outputName)
     {
+        LoggerService.Instance.LogDebug($"Compile started: {filePath ?? "unsaved"} -> {outputName}");
         string rawCompilerPath = SettingsService.Instance.Current.AngelScriptCompilerPath.SanitizePath();
 
         if (string.IsNullOrWhiteSpace(rawCompilerPath) || !File.Exists(rawCompilerPath))
@@ -29,6 +30,7 @@ public class CompilerService
 
         if (!File.Exists(compilerPath))
         {
+            LoggerService.Instance.LogError($"Compile failed: ASCompiler.exe not found at {compilerPath}");
             return ProcessLogToEntries("Error: ASCompiler.exe not found!");
         }
 
@@ -78,6 +80,7 @@ public class CompilerService
             using var process = new Process { StartInfo = startInfo };
             if (!process.Start())
             {
+                LoggerService.Instance.LogError($"Compile failed: OS refused to start {compilerPath}");
                 return ProcessLogToEntries("Error: The OS refused to start the compilation process.");
             }
 
@@ -159,13 +162,17 @@ public class CompilerService
 
             if (!string.IsNullOrWhiteSpace(fileLogContent))
             {
-                return ProcessLogToEntries(fileLogContent);
+                var entries = ProcessLogToEntries(fileLogContent);
+                LoggerService.Instance.LogDebug($"Compile finished: {entries.Count} lines");
+                return entries;
             }
 
+            LoggerService.Instance.LogWarn($"Compile finished without log output for {scriptFileName}");
             return ProcessLogToEntries("Warning: No compiler log file contained text or was created.");
         }
         catch (Exception ex)
         {
+            LoggerService.Instance.LogError($"Compile error: {ex.Message}");
             return ProcessLogToEntries($"Error: {ex.Message}");
         }
         finally

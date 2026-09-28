@@ -18,6 +18,8 @@ public static class DiscordRpcService
 
     public static void Initialize()
     {
+        try
+        {
         _client = new DiscordRpcClient(ClientId);
         _client.Logger = new ConsoleLogger { Level = LogLevel.Warning };
         _client.Initialize();
@@ -25,6 +27,12 @@ public static class DiscordRpcService
         _sessionTimestamps = Timestamps.Now;
 
         UpdateToMainMenu();
+        LoggerService.Instance.LogDebug($"Discord RPC initialized");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Discord RPC init failed: {ex.Message}");
+        }
     }
 
     public static void UpdateToMainMenu()

@@ -19,6 +19,7 @@ public class CommandRegistry
         {
             _commands[alias] = command;
         }
+        LoggerService.Instance.LogDebug($"Command registered: {command.Name}");
     }
 
     public void RegisterFromAssembly(Assembly assembly)

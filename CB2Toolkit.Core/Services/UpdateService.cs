@@ -19,14 +19,16 @@ public class UpdateService
 
     public async Task CheckForUpdatesAsync()
     {
+        LoggerService.Instance.LogDebug($"Update check started, current {AppMetadata.CurrentVersion}");
         try
         {
- 
+
             string url = $"https://api.github.com/repos/{AppMetadata.GithubOwner}/{AppMetadata.GithubRepo}/releases";
             HttpResponseMessage response = await _httpClient.GetAsync(url);
 
             if (!response.IsSuccessStatusCode)
             {
+                LoggerService.Instance.LogWarn($"Update check failed: {(int)response.StatusCode} {response.StatusCode}");
                 return;
             }
 
@@ -68,6 +70,7 @@ public class UpdateService
 
                         if (hasUpdate)
                         {
+                            LoggerService.Instance.LogInfo($"Update available: {tagName}");
                             string downloadUrl = AppMetadata.GithubUrl;
                             if (latestRelease.TryGetProperty("html_url", out JsonElement urlProperty))
                             {
@@ -76,13 +79,17 @@ public class UpdateService
 
                             OnUpdateAvailable?.Invoke(tagName, downloadUrl);
                         }
+                        else
+                        {
+                            LoggerService.Instance.LogDebug($"No updates, latest {tagName}");
+                        }
                     }
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-    
+            LoggerService.Instance.LogError($"Update check error: {ex.Message}");
         }
     }
 }

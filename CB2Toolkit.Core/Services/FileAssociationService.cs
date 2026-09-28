@@ -13,7 +13,11 @@ public static class FileAssociationService
         try
         {
             string exePath = Environment.ProcessPath;
-            if (string.IsNullOrEmpty(exePath)) return;
+            if (string.IsNullOrEmpty(exePath))
+            {
+                LoggerService.Instance.LogWarn($"File association skipped, no exe path");
+                return;
+            }
 
             using (var key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\.as"))
             {
@@ -31,9 +35,11 @@ public static class FileAssociationService
             }
 
             SHChangeNotify(0x08000000, 0x0000, IntPtr.Zero, IntPtr.Zero);
+            LoggerService.Instance.LogDebug($"File association registered: {exePath}");
         }
-        catch
+        catch (Exception ex)
         {
+            LoggerService.Instance.LogError($"File association failed: {ex.Message}");
         }
     }
 }

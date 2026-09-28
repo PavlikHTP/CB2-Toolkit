@@ -75,9 +75,11 @@ public class ShellService
                     ILFree(pidlAbsolute);
                 }
             }
+            LoggerService.Instance.LogDebug($"Reveal in explorer: {path}");
         }
-        catch
+        catch (Exception ex)
         {
+            LoggerService.Instance.LogError($"Reveal in explorer failed: {path}: {ex.Message}");
         }
     }
     
@@ -93,9 +95,11 @@ public class ShellService
             }
 
             ShellExecute(IntPtr.Zero, "open", folderPath, null, null, 1);
+            LoggerService.Instance.LogDebug($"Folder opened: {folderPath}");
         }
-        catch
+        catch (Exception ex)
         {
+            LoggerService.Instance.LogError($"Open folder failed: {folderPath}: {ex.Message}");
         }
     }
 }

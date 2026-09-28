@@ -44,9 +44,11 @@ public class SpellCheckDictionaryService
             Directory.CreateDirectory(DictionariesFolder);
             EnsureDefaultFile("en.txt");
             EnsureDefaultFile("ru.txt");
+            LoggerService.Instance.LogDebug($"Dictionaries ready: {DictionariesFolder}");
         }
-        catch
+        catch (Exception ex)
         {
+            LoggerService.Instance.LogError($"Dictionaries init failed: {ex.Message}");
         }
     }
 
@@ -109,6 +111,11 @@ public class SpellCheckDictionaryService
                 _loaded = true;
                 _loadFailed = false;
             }
+            LoggerService.Instance.LogDebug($"Dictionaries loaded: {words.Count} words");
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError($"Dictionaries load failed: {ex.Message}");
         }
         finally
         {

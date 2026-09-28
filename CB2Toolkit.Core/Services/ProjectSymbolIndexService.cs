@@ -37,9 +37,11 @@ public class ProjectSymbolIndexService
                     if (!AppMetadata.SupportedExtensions.Contains(Path.GetExtension(file))) continue;
                     CollectIdentifiers(file, names);
                 }
+                LoggerService.Instance.LogDebug($"Symbol index rebuilt: {names.Count} names");
             }
-            catch
+            catch (Exception ex)
             {
+                LoggerService.Instance.LogError($"Symbol index rebuild failed: {ex.Message}");
             }
         }
 

@@ -17,6 +17,7 @@ public partial class NewsService
 
     public async Task<List<NewsItem>> FetchNewsAsync(AppSettings settings)
     {
+        LoggerService.Instance.LogDebug($"News fetch started, priority {settings.FetchPriority}");
         string primaryUrl = settings.FetchPriority == FetchPrioritySource.GitHub ? settings.GitHubNewsUrl : settings.PastebinNewsUrl;
         string secondaryUrl = settings.FetchPriority == FetchPrioritySource.GitHub ? settings.PastebinNewsUrl : settings.GitHubNewsUrl;
 
@@ -24,15 +25,19 @@ public partial class NewsService
 
         if (string.IsNullOrEmpty(rawText))
         {
+            LoggerService.Instance.LogWarn($"News primary source failed, trying secondary");
             rawText = await TryFetchWithRetriesAsync(secondaryUrl, 3);
         }
 
         if (string.IsNullOrEmpty(rawText))
         {
+            LoggerService.Instance.LogError($"News fetch failed for both sources");
             return new List<NewsItem>();
         }
 
-        return ParseNews(rawText);
+        var parsed = ParseNews(rawText);
+        LoggerService.Instance.LogDebug($"News fetch done, items: {parsed.Count}");
+        return parsed;
     }
 
     private async Task<string> TryFetchWithRetriesAsync(string url, int maxRetries)
@@ -43,8 +48,9 @@ public partial class NewsService
             {
                 return await _httpClient.GetStringAsync(url);
             }
-            catch
+            catch (Exception ex)
             {
+                LoggerService.Instance.LogDebug($"News fetch attempt {i + 1}/{maxRetries} failed for {url}: {ex.Message}");
                 if (i < maxRetries - 1)
                 {
                     await Task.Delay(500);
